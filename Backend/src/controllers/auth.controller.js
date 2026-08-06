@@ -2,8 +2,26 @@ import userModel from "../models/user.model";
 import jwt from 'jsonwebtoken';
 import { config } from '../config/config.js';
 
-async function sendTokenResponse(){
+async function sendTokenResponse(user, res, message){
+    const token =jwt.sign({
+        id: user.id
+    }, config.JWT_SECRET, {
+        expiresIn: "7d" 
+    })
 
+    res.cookie("token", token);
+
+    res.status(200).json({
+        message,
+        sucess: true,
+        user:{
+            id: user._id,
+            email: user.email,
+            contact: user.contact,
+            fullname: user.fullname,
+            role: user.role
+        }
+    })
 }
 
 export const register = async(req, res)=>{
@@ -37,6 +55,7 @@ export const register = async(req, res)=>{
             role
 
         })
+        await sendTokenResponse(req, res, "User registered successfully");
 
     }catch(error){
         console.log(error);
