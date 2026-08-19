@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/config.js';
 
 async function sendTokenResponse(user, res, message){
-    const token =jwt.sign({
+    const token = jwt.sign({
         id: user.id
     }, config.JWT_SECRET, {
         expiresIn: "7d" 
@@ -24,9 +24,10 @@ async function sendTokenResponse(user, res, message){
     })
 }
 
+
 export const register = async(req, res)=>{
 
-    const { email, contact, password, fullname, role} = req.body;
+    const { email, contact, password, fullname, isSeller} = req.body;
     const { countryCode, number} = contact;
 
     try{
@@ -52,10 +53,10 @@ export const register = async(req, res)=>{
             },
             password,
             fullname,
-            role
+            role: Seller ? "seller" : "buyer"
 
         })
-        await sendTokenResponse(req, res, "User registered successfully");
+        await sendTokenResponse(user, res, "User registered successfully");
 
     }catch(error){
         console.log(error);
@@ -63,4 +64,10 @@ export const register = async(req, res)=>{
             message: "Server Error"
         }) 
     }
+}
+
+export const login = async(req, res) =>{
+
+    const { email, password } = req.body;
+    
 }
