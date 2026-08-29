@@ -1,10 +1,10 @@
-import userModel from "../models/user.model";
+import userModel from "../models/user.model.js";
 import jwt from 'jsonwebtoken';
 import { config } from '../config/config.js';
 
 async function sendTokenResponse(user, res, message){
     const token = jwt.sign({
-        id: user.id
+        id: user._id
     }, config.JWT_SECRET, {
         expiresIn: "7d" 
     })
@@ -28,14 +28,13 @@ async function sendTokenResponse(user, res, message){
 export const register = async(req, res)=>{
 
     const { email, contact, password, fullname, isSeller} = req.body;
-    const { countryCode, number} = contact;
 
     try{
 
         const existingUser = await userModel.findOne({
             $or:[
                 { email },
-                { "contact.number": number }
+                { contact }
             ]
         })
         
@@ -47,13 +46,10 @@ export const register = async(req, res)=>{
 
         const user = await userModel.create({
             email,
-            contact: {
-                countryCode,
-                number
-            },
+            contact,
             password,
             fullname,
-            role: Seller ? "seller" : "buyer"
+            role: isSeller ? "seller" : "buyer"
 
         })
         await sendTokenResponse(user, res, "User registered successfully");

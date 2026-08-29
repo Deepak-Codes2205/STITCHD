@@ -21,13 +21,7 @@ export const validateRegisterUser = [
         .isEmail()
         .withMessage("Invalid email address"),
 
-    body('contact.countryCode')
-        .notEmpty()
-        .withMessage("Country code is required")
-        .matches(/^\+\d{1,4}$/)
-        .withMessage("Country code must be in the format +91, +1, +44, etc."),
-
-    body('contact.number')
+    body('contact')
         .notEmpty()
         .withMessage("Contact number is required")
         .matches(/^\d{10}$/)
@@ -51,3 +45,4 @@ export const validateRegisterUser = [
 
     validateRequest
 ];
+

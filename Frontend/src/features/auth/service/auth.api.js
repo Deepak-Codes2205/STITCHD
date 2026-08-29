@@ -10,7 +10,7 @@ export async function register({ email, contact, password, fullname, isSeller })
         email,
         contact,
         password,
-        fullname,
+        fullname, 
         isSeller
     })
 

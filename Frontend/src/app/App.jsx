@@ -1,10 +1,11 @@
-import React from 'react'
 import './App.css';
+import { RouterProvider } from 'react-router';
+import { routes } from './app.routes'
 
-const App = () => {
+function App() {
     return (
         <>
-            <h1 className='bg-gray-300'>Hello</h1>
+            <RouterProvider router={routes} />
         </>
     )
 }
