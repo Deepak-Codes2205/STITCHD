@@ -65,5 +65,28 @@ export const register = async(req, res)=>{
 export const login = async(req, res) =>{
 
     const { email, password } = req.body;
-    
+    try{
+        const user = await userModel.findOne({ email });
+        if(!user)
+        {
+            return res.status(400).json({
+                    Message: "Invalid email or password"
+                })
+        }
+
+        const isMatch = await user.comparePassword(password);
+        if(!isMatch)
+        {
+            return res.status(400).json({
+                message:"Invalid Password"
+            })
+        }
+
+        await sendTokenResponse(user, res, "User logged in successfully")
+    }catch(error){
+        console.log(error);
+        return res.status(500).json({
+            message: "Server Error"
+        }) 
+    }
 }
