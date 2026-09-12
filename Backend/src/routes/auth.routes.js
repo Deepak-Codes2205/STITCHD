@@ -18,7 +18,6 @@ router.get('/google',
 //Sends Auth code to Google and get it verify and validate and brings the user data as "req.user"
 router.get('/google/callback',
     passport.authenticate("google", { session: false }),
-    googleCallback,
 )
 
 export default router
