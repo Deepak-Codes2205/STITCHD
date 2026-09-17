@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hook/useAuth';
 import { useNavigate } from 'react-router';
+import ContinueWithGoogle from '../components/ContinueWithGoogle';
 
 const Login = () => {
     const { handlelogin } = useAuth();
@@ -111,10 +112,13 @@ const Login = () => {
                             </div>
                         </div>
 
+                        {/* Google Auth */}
+                        <ContinueWithGoogle />
+
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold uppercase tracking-widest text-sm py-4 mt-12 transition-all duration-300 ease-in-out hover:shadow-[0_0_20px_rgba(234,179,8,0.3)]"
+                            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold uppercase tracking-widest text-sm py-4 mt-6 transition-all duration-300 ease-in-out hover:shadow-[0_0_20px_rgba(234,179,8,0.3)]"
                         >
                             Sign In
                         </button>

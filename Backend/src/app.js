@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import connectDB from './config/database.js';
 import authRouter from './routes/auth.routes.js'
+import productRouter from './routes/product.routes.js'
 import cors  from "cors"
 import  passport  from "passport"
 import { Strategy as GoogleStrategy } from "passport-google-oauth20"
@@ -44,5 +45,6 @@ app.get('/', (_req, res) => {
 }); 
 
 app.use('/api/auth', authRouter);
+app.use('/api/products', productRouter);
 
 export default app;

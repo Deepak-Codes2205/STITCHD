@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { validateLoginUser, validateRegisterUser } from "../validator/auth.validator.js";
-import { register, login } from '../controllers/auth.controller.js';
+import { register, login, googleCallback } from '../controllers/auth.controller.js';
 import passport from "passport";
 import { config } from "../config/config.js"
 
@@ -17,7 +17,8 @@ router.get('/google',
 
 //Sends Auth code to Google and get it verify and validate and brings the user data as "req.user"
 router.get('/google/callback',
-    passport.authenticate("google", { session: false }),
+    passport.authenticate("google", { session: false, failureRedirect: config.NODE_ENV == "development" ? "http://localhost:5173/login" : "/login" }),
+    googleCallback
 )
 
 export default router
