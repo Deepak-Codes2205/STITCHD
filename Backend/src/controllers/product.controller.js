@@ -10,7 +10,7 @@ export async function createProduct(req, res) {
         return await uploadFile({
             buffer: file.buffer,
             fileName: file.originalname
-        })
+        })  
     }))
 
     const product = await productModel.create({
