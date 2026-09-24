@@ -1,27 +1,23 @@
 import React, { useState } from 'react';
-import { useAuth } from '../hook/useAuth';
+import { useAuth } from "../hook/useAuth";
 import { useNavigate } from 'react-router';
 import ContinueWithGoogle from '../components/ContinueWithGoogle';
 
 const Register = () => {
-
     const { handleRegister } = useAuth();
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
         fullName: '',
-        email: '',
         contactNumber: '',
+        email: '',
         password: '',
-        isSeller: false,
+        isSeller: false
     });
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
     const handleSubmit = async (e) => {
@@ -30,179 +26,287 @@ const Register = () => {
             email: formData.email,
             contact: formData.contactNumber,
             password: formData.password,
-            fullname: formData.fullName,
-            isSeller: formData.isSeller
+            isSeller: formData.isSeller,
+            fullname: formData.fullName
         });
-        navigate("/login");
+        navigate("/");
     };
 
+    const inputStyle = {
+        color: '#1b1c1a',
+        borderBottom: '1px solid #d0c5b5',
+        fontFamily: "'Inter', sans-serif"
+    };
+
+    const handleFocus = (e) => { e.target.style.borderBottomColor = '#C9A96E'; };
+    const handleBlur = (e) => { e.target.style.borderBottomColor = '#d0c5b5'; };
+
     return (
-        <div className="min-h-screen bg-[#0a0a0c] text-gray-200 flex">
-            {/* Left side - Image */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-black">
-                <img
-                    src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"
-                    alt="STITCHD Fashion"
-                    className="absolute inset-0 w-full h-full object-cover opacity-50"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] via-black/40 to-black/10"></div>
+        <>
+            {/* Google Fonts */}
+            <link
+                href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap"
+                rel="stylesheet"
+            />
 
-                <div className="relative z-10 flex flex-col justify-between p-16 w-full">
-                    <div className="text-3xl font-bold tracking-[0.3em] text-white">
-                        STITCHD<span className="text-yellow-500">.</span>
-                    </div>
-
-                    <div className="mb-12">
-                        <h2 className="text-5xl font-light text-white leading-tight mb-6 font-serif italic">
-                            Redefining <br /> <span className="text-yellow-500 font-sans not-italic font-bold tracking-widest uppercase text-4xl">Elegance</span>
-                        </h2>
-                        <p className="text-gray-300 text-lg max-w-md font-light tracking-wide leading-relaxed">
-                            Join the premier destination for exclusive fashion. Discover curated collections and elevate your everyday style.
-                        </p>
+            <div
+                className="min-h-screen flex flex-col lg:flex-row selection:bg-[#C9A96E]/30"
+                style={{ backgroundColor: '#fbf9f6', fontFamily: "'Inter', sans-serif" }}
+            >
+                {/* ── LEFT: Editorial Image Panel ── */}
+                <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden" style={{ backgroundColor: '#f5f3f0' }}>
+                    <img
+                        src="/clothing_brand_login.jpg"
+                        alt="Snitch Fashion Editorial"
+                        className="absolute inset-0 w-full h-full object-cover object-top"
+                        style={{ filter: 'brightness(0.97)' }}
+                    />
+                    <div
+                        className="absolute inset-0"
+                        style={{ background: 'linear-gradient(to top, rgba(27,24,20,0.62) 0%, rgba(27,24,20,0.08) 45%, transparent 100%)' }}
+                    />
+                    <div className="absolute inset-0 p-14 flex flex-col justify-between z-10">
+                        <span
+                            className="text-sm font-medium tracking-[0.35em] uppercase"
+                            style={{ fontFamily: "'Cormorant Garamond', serif", color: '#C9A96E' }}
+                        >
+                            STITCHD.
+                        </span>
+                        <div>
+                            <p
+                                className="text-5xl xl:text-6xl font-light leading-[1.08] text-white mb-5"
+                                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                            >
+                                Define your<br />
+                                <em>aesthetic.</em>
+                            </p>
+                            <p className="text-sm font-light leading-relaxed max-w-xs" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                                Join the exclusive movement of creators and brands redefining the modern fashion landscape.
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Right side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-10 lg:px-16 lg:py-8 relative">
-                {/* Mobile logo */}
-                <div className="absolute top-8 left-8 lg:hidden text-2xl font-bold tracking-[0.2em] text-white">
-                    STITCHD<span className="text-yellow-500">.</span>
-                </div>
+                {/* ── RIGHT: Form Panel ── */}
+                <div
+                    className="w-full lg:w-1/2 flex items-center justify-center min-h-screen px-8 sm:px-14 lg:px-20 py-16 overflow-y-auto"
+                    style={{ backgroundColor: '#fbf9f6' }}
+                >
+                    <div className="w-full max-w-md xl:max-w-xl">
 
-                <div className="w-full max-w-md mt-10 lg:mt-0">
-                    <div className="mb-6">
-                        <h1 className="text-3xl font-light tracking-wide text-white mb-2">Create an Account</h1>
-                        <p className="text-gray-400 text-sm tracking-wide">Enter your details to become a member.</p>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-3">
-                            {/* Full Name */}
-                            <div className="relative pt-3">
-                                <input
-                                    type="text"
-                                    id="fullName"
-                                    name="fullName"
-                                    value={formData.fullName}
-                                    onChange={handleChange}
-                                    className="peer w-full bg-transparent text-white border-b border-gray-700 py-2 focus:outline-none focus:border-yellow-500 transition-colors duration-300 placeholder-transparent"
-                                    placeholder="Full Name"
-                                    required
-                                />
-                                <label
-                                    htmlFor="fullName"
-                                    className="absolute left-0 top-0.5 text-gray-500 text-xs transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-6 peer-focus:top-0.5 peer-focus:text-xs peer-focus:text-yellow-500 uppercase tracking-widest"
-                                >
-                                    Full Name
-                                </label>
-                            </div>
-
-                            {/* Email */}
-                            <div className="relative pt-3">
-                                <input
-                                    type="email"
-                                    id="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className="peer w-full bg-transparent text-white border-b border-gray-700 py-2 focus:outline-none focus:border-yellow-500 transition-colors duration-300 placeholder-transparent"
-                                    placeholder="Email Address"
-                                    required
-                                />
-                                <label
-                                    htmlFor="email"
-                                    className="absolute left-0 top-0.5 text-gray-500 text-xs transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-6 peer-focus:top-0.5 peer-focus:text-xs peer-focus:text-yellow-500 uppercase tracking-widest"
-                                >
-                                    Email Address
-                                </label>
-                            </div>
-
-                            {/* Contact Number */}
-                            <div className="relative pt-3">
-                                <input
-                                    type="tel"
-                                    id="contactNumber"
-                                    name="contactNumber"
-                                    value={formData.contactNumber}
-                                    onChange={handleChange}
-                                    className="peer w-full bg-transparent text-white border-b border-gray-700 py-2 focus:outline-none focus:border-yellow-500 transition-colors duration-300 placeholder-transparent"
-                                    placeholder="Contact Number"
-                                    required
-                                />
-                                <label
-                                    htmlFor="contactNumber"
-                                    className="absolute left-0 top-0.5 text-gray-500 text-xs transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-6 peer-focus:top-0.5 peer-focus:text-xs peer-focus:text-yellow-500 uppercase tracking-widest"
-                                >
-                                    Contact Number
-                                </label>
-                            </div>
-
-                            {/* Password */}
-                            <div className="relative pt-3">
-                                <input
-                                    type="password"
-                                    id="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className="peer w-full bg-transparent text-white border-b border-gray-700 py-2 focus:outline-none focus:border-yellow-500 transition-colors duration-300 placeholder-transparent"
-                                    placeholder="Password"
-                                    required
-                                />
-                                <label
-                                    htmlFor="password"
-                                    className="absolute left-0 top-0.5 text-gray-500 text-xs transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-6 peer-focus:top-0.5 peer-focus:text-xs peer-focus:text-yellow-500 uppercase tracking-widest"
-                                >
-                                    Password
-                                </label>
-                            </div>
+                        {/* Mobile brand mark */}
+                        <div className="lg:hidden mb-14">
+                            <span
+                                className="text-sm tracking-[0.35em] uppercase"
+                                style={{ fontFamily: "'Cormorant Garamond', serif", color: '#C9A96E' }}
+                            >
+                                Snitch.
+                            </span>
                         </div>
 
-                        {/* isSeller Checkbox */}
-                        <div className="flex items-center pt-2 -ml-3">
-                            <label className="relative flex items-center p-3 rounded-full cursor-pointer" htmlFor="isSeller">
-                                <input
-                                    type="checkbox"
-                                    className="before:content[''] peer relative h-5 w-5 cursor-pointer appearance-none rounded-sm border border-gray-600 transition-all before:absolute before:top-2/4 before:left-2/4 before:block before:h-12 before:w-12 before:-translate-y-2/4 before:-translate-x-2/4 before:rounded-full before:bg-yellow-500 before:opacity-0 before:transition-opacity checked:border-yellow-500 checked:bg-yellow-500 checked:before:bg-yellow-500 hover:before:opacity-10"
-                                    id="isSeller"
-                                    name="isSeller"
-                                    checked={formData.isSeller}
-                                    onChange={handleChange}
-                                />
-                                <span className="absolute text-black transition-opacity opacity-0 pointer-events-none top-2/4 left-2/4 -translate-y-2/4 -translate-x-2/4 peer-checked:opacity-100">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" strokeWidth="1">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
-                                    </svg>
+                        {/* Header */}
+                        <div className="mb-12">
+                            <p
+                                className="text-[10px] uppercase tracking-[0.22em] mb-4 font-medium"
+                                style={{ color: '#C9A96E' }}
+                            >
+                                Welcome to SNITCHD
+                            </p>
+                            <h1
+                                className="text-[2.6rem] xl:text-5xl font-light leading-[1.1]"
+                                style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1b1c1a' }}
+                            >
+                                Elevate Your Style
+                            </h1>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-9">
+
+                            {/* Personal Info Row */}
+                            <div className="flex flex-col xl:flex-row gap-9">
+                                {/* Full Name */}
+                                <div className="flex flex-col gap-2 flex-1">
+                                    <label
+                                        htmlFor="reg-fullName"
+                                        className="text-[10px] uppercase tracking-[0.18em] font-medium"
+                                        style={{ color: '#7A6E63' }}
+                                    >
+                                        Full Name
+                                    </label>
+                                    <input
+                                        id="reg-fullName"
+                                        type="text"
+                                        name="fullName"
+                                        value={formData.fullName}
+                                        onChange={handleChange}
+                                        required
+                                        placeholder="e.g. John Doe"
+                                        className="w-full bg-transparent outline-none py-3 text-sm transition-colors duration-300"
+                                        style={inputStyle}
+                                        onFocus={handleFocus}
+                                        onBlur={handleBlur}
+                                    />
+                                </div>
+
+                                {/* Contact Number */}
+                                <div className="flex flex-col gap-2 flex-1">
+                                    <label
+                                        htmlFor="reg-contact"
+                                        className="text-[10px] uppercase tracking-[0.18em] font-medium"
+                                        style={{ color: '#7A6E63' }}
+                                    >
+                                        Contact Number
+                                    </label>
+                                    <input
+                                        id="reg-contact"
+                                        type="tel"
+                                        name="contactNumber"
+                                        value={formData.contactNumber}
+                                        onChange={handleChange}
+                                        required
+                                        placeholder="+91 98765 43210"
+                                        className="w-full bg-transparent outline-none py-3 text-sm transition-colors duration-300"
+                                        style={inputStyle}
+                                        onFocus={handleFocus}
+                                        onBlur={handleBlur}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Account Info Row */}
+                            <div className="flex flex-col xl:flex-row gap-9">
+                                {/* Email */}
+                                <div className="flex flex-col gap-2 flex-1">
+                                    <label
+                                        htmlFor="reg-email"
+                                        className="text-[10px] uppercase tracking-[0.18em] font-medium"
+                                        style={{ color: '#7A6E63' }}
+                                    >
+                                        Email Address
+                                    </label>
+                                    <input
+                                        id="reg-email"
+                                        type="email"
+                                        name="email"
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        required
+                                        placeholder="hello@example.com"
+                                        className="w-full bg-transparent outline-none py-3 text-sm transition-colors duration-300"
+                                        style={inputStyle}
+                                        onFocus={handleFocus}
+                                        onBlur={handleBlur}
+                                    />
+                                </div>
+
+                                {/* Password */}
+                                <div className="flex flex-col gap-2 flex-1">
+                                    <label
+                                        htmlFor="reg-password"
+                                        className="text-[10px] uppercase tracking-[0.18em] font-medium"
+                                        style={{ color: '#7A6E63' }}
+                                    >
+                                        Password
+                                    </label>
+                                    <input
+                                        id="reg-password"
+                                        type="password"
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        required
+                                        placeholder="••••••••"
+                                        className="w-full bg-transparent outline-none py-3 text-sm transition-colors duration-300"
+                                        style={inputStyle}
+                                        onFocus={handleFocus}
+                                        onBlur={handleBlur}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Register as Seller — minimal checkbox */}
+                            <label
+                                htmlFor="reg-isSeller"
+                                className="flex items-center gap-4 cursor-pointer group"
+                            >
+                                <div className="relative flex-shrink-0">
+                                    <input
+                                        id="reg-isSeller"
+                                        type="checkbox"
+                                        name="isSeller"
+                                        checked={formData.isSeller}
+                                        onChange={handleChange}
+                                        className="peer sr-only"
+                                    />
+                                    {/* Custom checkbox */}
+                                    <div
+                                        className="w-4 h-4 border transition-all duration-200 flex items-center justify-center peer-checked:border-[#C9A96E]"
+                                        style={{
+                                            borderColor: formData.isSeller ? '#C9A96E' : '#d0c5b5',
+                                            backgroundColor: formData.isSeller ? '#C9A96E' : 'transparent'
+                                        }}
+                                    >
+                                        {formData.isSeller && (
+                                            <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill="none">
+                                                <path d="M2 6l3 3 5-5" stroke="#fbf9f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                </div>
+                                <span
+                                    className="text-[11px] uppercase tracking-[0.15em] transition-colors duration-200"
+                                    style={{ color: formData.isSeller ? '#C9A96E' : '#7A6E63' }}
+                                >
+                                    Register as Seller
                                 </span>
                             </label>
-                            <label htmlFor="isSeller" className="text-sm font-light tracking-wide text-gray-400 cursor-pointer select-none">
-                                I want to register as a Seller
-                            </label>
 
-                        </div>
+                            {/* Sign Up Button */}
+                            <button
+                                type="submit"
+                                className="w-full py-4 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 mt-2"
+                                style={{ backgroundColor: '#1b1c1a', color: '#fbf9f6', fontFamily: "'Inter', sans-serif" }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.backgroundColor = '#C9A96E';
+                                    e.currentTarget.style.color = '#1b1c1a';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.backgroundColor = '#1b1c1a';
+                                    e.currentTarget.style.color = '#fbf9f6';
+                                }}
+                            >
+                                Sign Up
+                            </button>
 
-                        {/* Google Auth */}
-                        <ContinueWithGoogle />
+                            {/* Divider */}
+                            <div className="flex items-center gap-4">
+                                <div className="flex-1 h-px" style={{ backgroundColor: '#e4e2df' }} />
+                                <span className="text-[10px] uppercase tracking-[0.15em]" style={{ color: '#B5ADA3' }}>or</span>
+                                <div className="flex-1 h-px" style={{ backgroundColor: '#e4e2df' }} />
+                            </div>
 
-                        {/* Submit Button */}
-                        <button
-                            type="submit"
-                            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold uppercase tracking-widest text-sm py-3 mt-4 transition-all duration-300 ease-in-out hover:shadow-[0_0_20px_rgba(234,179,8,0.3)]"
-                        >
-                            Join STITCHD
-                        </button>
-                    </form>
+                            {/* Google SSO */}
+                            <ContinueWithGoogle />
 
-                    <p className="mt-6 text-center text-sm font-light text-gray-500 tracking-wide">
-                        Already a member?{' '}
-                        <a href="/login" className="text-yellow-500 hover:text-yellow-400 font-medium transition-colors duration-200 border-b border-transparent hover:border-yellow-400 pb-0.5">
-                            Sign In
-                        </a>
-                    </p>
+                            {/* Footer Link */}
+                            <p className="text-center text-[11px]" style={{ color: '#B5ADA3' }}>
+                                Already have an account?{' '}
+                                <a
+                                    href="/login"
+                                    className="transition-colors duration-200"
+                                    style={{ color: '#7A6E63', textDecoration: 'underline', textUnderlineOffset: '3px' }}
+                                    onMouseEnter={e => e.target.style.color = '#C9A96E'}
+                                    onMouseLeave={e => e.target.style.color = '#7A6E63'}
+                                >
+                                    Sign in
+                                </a>
+                            </p>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 
