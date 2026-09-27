@@ -20,7 +20,7 @@ const router = express.Router();
  * @desc Create a new product
  * @access Private (Seller only)
  */
-router.post('/', authenticateSeller, upload.array('images', 7), CreateProductValidator, createProduct)
+router.post('/seller/create-product', authenticateSeller, upload.array('images', 7), CreateProductValidator, createProduct)
 
 
 /**
@@ -28,7 +28,7 @@ router.post('/', authenticateSeller, upload.array('images', 7), CreateProductVal
  * @desc Get all products of the authenticated seller
  * @access Private (Seller only)
  */
-router.get('/seller', authenticateSeller, getSellerProducts);
+router.get('/seller/dashboard', authenticateSeller, getSellerProducts);
 
 
 
