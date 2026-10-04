@@ -22,14 +22,20 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await handleRegister({
+        const user = await handleRegister({
             email: formData.email,
             contact: formData.contactNumber,
             password: formData.password,
             isSeller: formData.isSeller,
             fullname: formData.fullName
         });
-        navigate("/");
+        
+        if(user.role == "buyer")
+        {
+            navigate("/");
+        }else if(user.role == "seller"){
+            navigate("/seller/dashboard");
+        }
     };
 
     const inputStyle = {
