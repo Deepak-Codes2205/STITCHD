@@ -5,7 +5,7 @@ import CreateProduct from "../features/products/pages/CreateProduct";
 import Dashboard from "../features/products/pages/Dashboard";
 import Protected from "../features/auth/components/Protected";
 import Home from "../features/products/pages/Home";
-
+import ProductDetail from "../features/products/pages/ProductDetail";
 
 /*
 A relative path → create-product
@@ -41,5 +41,9 @@ export const routes = createBrowserRouter([
                 </Protected>
             }
         ]
+    },
+    {
+        path: "/product/:productId",
+        element: <ProductDetail />
     }
 ])

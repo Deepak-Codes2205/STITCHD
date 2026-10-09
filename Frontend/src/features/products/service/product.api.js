@@ -19,3 +19,13 @@ export async function getAllProducts() {
     const response = await productApiInstance.get("/");
     return response.data;
 }
+
+export async function getProductById(id) {
+    const response = await productApiInstance.get(`/${id}`);
+    return response.data;
+}
+
+export async function getProductDetailsById(productId) {
+    const response = await productApiInstance.get(`/detail/${productId}`);
+    return response.data;
+}

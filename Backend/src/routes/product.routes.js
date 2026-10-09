@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateSeller } from '../middlewares/auth.middleware.js';
-import { createProduct, getSellerProducts, getAllProducts } from '../controllers/product.controller.js';
+import { createProduct, getSellerProducts, getAllProducts, getProductDetailsById} from '../controllers/product.controller.js';
 import { CreateProductValidator } from '../validator/product.validator.js';
 //Imagekit - Multer
 import multer from 'multer';
@@ -37,6 +37,15 @@ router.get('/seller', authenticateSeller, getSellerProducts);
  * @access Public
  */
 router.get('/', getAllProducts)
+
+
+/**
+ * @route GET /api/products/detail/:productId
+ * @desc Get product details by productId
+ * @access Public
+ */
+router.get('/detail/:id', getProductDetailsById)
+ 
 
 
 export default router 
