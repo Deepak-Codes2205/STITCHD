@@ -6,6 +6,7 @@ import Dashboard from "../features/products/pages/Dashboard";
 import Protected from "../features/auth/components/Protected";
 import Home from "../features/products/pages/Home";
 import ProductDetail from "../features/products/pages/ProductDetail";
+import SellerProductDetails from "../features/products/pages/SellerProductDetails";
 
 /*
 A relative path → create-product
@@ -39,11 +40,17 @@ export const routes = createBrowserRouter([
                 element: <Protected role="seller">
                     <Dashboard />
                 </Protected>
+            },
+            {
+                path: "product/:productId",
+                element: <Protected role="seller">
+                    <SellerProductDetails />
+                </Protected>
             }
         ]
     },
     {
         path: "/product/:productId",
         element: <ProductDetail />
-    }
+    },
 ])
