@@ -17,26 +17,30 @@ const ProductDetail = () => {
     const [addedToBag, setAddedToBag] = useState(false);
 
     // 4. Fetch product details when the component mounts or when productId changes
-    useEffect(() => {
-        async function fetchDetails() {
-            setLoading(true);
-            try {
-                const data = await handleGetProductDetailsById(productId);
-                console.log("Fetched Product Data:", data);
-                if (data) {
-                    setProduct(data?.product || data);
-                }
-            } catch (error) {
-                console.error("Error fetching product details:", error);
-            } finally {
+    let isCurrent = true;
+    async function fetchProductDetails() {
+        setLoading(true);
+        setProduct(null);
+         try {
+            const data = await handleGetProductDetailsById(productId);
+
+            if (isCurrent) {
+                setProduct(data ?? null);
+            }
+        } finally {
+            if (isCurrent) {
                 setLoading(false);
+                isCurrent = false;
             }
         }
+    }
 
-        if (productId) {
-            fetchDetails();
-        }
+
+    useEffect(() => {
+        fetchProductDetails();
     }, [productId]);
+    
+    console.log("Product details by id fetched:", product);
 
     // Helper function to format price cleanly
     const formatPrice = (priceObj) => {
@@ -53,6 +57,7 @@ const ProductDetail = () => {
 
     // Handle "Buy Now" action
     const handleBuyNow = () => {
+        
         alert(`Proceeding to checkout for "${product.title}"`);
     };
 

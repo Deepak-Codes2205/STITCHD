@@ -63,7 +63,7 @@ export async function getProductDetailsById(req, res) {
         });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
         message: "Product details fetched successfully",
         success: true,
         product
