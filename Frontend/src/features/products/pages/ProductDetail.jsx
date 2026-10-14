@@ -21,7 +21,7 @@ const ProductDetail = () => {
     async function fetchProductDetails() {
         setLoading(true);
         setProduct(null);
-         try {
+        try {
             const data = await handleGetProductDetailsById(productId);
 
             if (isCurrent) {
@@ -39,7 +39,7 @@ const ProductDetail = () => {
     useEffect(() => {
         fetchProductDetails();
     }, [productId]);
-    
+
     console.log("Product details by id fetched:", product);
 
     // Helper function to format price cleanly
@@ -57,7 +57,7 @@ const ProductDetail = () => {
 
     // Handle "Buy Now" action
     const handleBuyNow = () => {
-        
+
         alert(`Proceeding to checkout for "${product.title}"`);
     };
 
@@ -103,6 +103,13 @@ const ProductDetail = () => {
     // Extract images safely
     const imagesList = product.images && product.images.length > 0 ? product.images : [];
     const currentImageUrl = imagesList[selectedImageIndex]?.url || imagesList[0]?.url || "/clothing_brand_login.jpg";
+    const totalImages = imagesList.length;
+
+    const handlePrevImage = () =>
+        setSelectedImageIndex((prev) => (prev === 0 ? totalImages - 1 : prev - 1));
+
+    const handleNextImage = () =>
+        setSelectedImageIndex((prev) => (prev === totalImages - 1 ? 0 : prev + 1));
 
     return (
         <div
@@ -147,9 +154,9 @@ const ProductDetail = () => {
             </header>
 
             {/* ── MAIN PRODUCT DETAIL CONTENT ── */}
-            <main className="max-w-6xl mx-auto px-6 sm:px-10 lg:px-16 py-12 md:py-16">
+            <main className="max-w-6xl mx-auto px-6 sm:px-10 lg:px-16 py-6 md:py-8">
                 {/* Top Navigation Row: Breadcrumbs & Return to Catalog Button */}
-                <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <button
                         onClick={() => navigate("/")}
                         className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-[#7A6E63] hover:text-[#1b1c1a] transition-colors cursor-pointer"
@@ -170,36 +177,27 @@ const ProductDetail = () => {
 
 
                 {/* 2-Column Product Detail Layout (Matching former popup UI) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start">
 
                     {/* ── LEFT: IMAGE GALLERY ── */}
-                    <div className="space-y-4">
-                        {/* Primary Image Display */}
-                        <div
-                            className="aspect-[3/4] w-full overflow-hidden border shadow-sm"
-                            style={{ backgroundColor: "#f2efe9", borderColor: "#e4e2df" }}
-                        >
-                            <img
-                                src={currentImageUrl}
-                                alt={product.title}
-                                className="w-full h-full object-cover object-top transition-transform duration-500 hover:scale-105"
-                                onError={(e) => {
-                                    e.currentTarget.src = "/clothing_brand_login.jpg";
-                                }}
-                            />
-                        </div>
+                    <div className="flex gap-3">
 
-                        {/* Thumbnail Selector (if product has 2+ images) */}
-                        {imagesList.length > 1 && (
-                            <div className="flex gap-3 overflow-x-auto pb-2">
+                        {/* Vertical Thumbnail Strip */}
+                        {totalImages > 1 && (
+                            <div
+                                className="flex flex-col gap-2 overflow-y-auto flex-shrink-0"
+                                style={{ width: "60px", maxHeight: "420px", scrollbarWidth: "thin", scrollbarColor: "#d0c5b5 transparent" }}
+                            >
                                 {imagesList.map((img, idx) => (
                                     <button
                                         key={img._id || idx}
                                         onClick={() => setSelectedImageIndex(idx)}
-                                        className={`w-20 h-24 flex-shrink-0 overflow-hidden border transition-all cursor-pointer ${selectedImageIndex === idx
-                                                ? "border-[#C9A96E] opacity-100 scale-105 shadow-sm"
-                                                : "border-transparent opacity-60 hover:opacity-100"
-                                            }`}
+                                        className={`flex-shrink-0 overflow-hidden border transition-all duration-200 cursor-pointer ${
+                                            selectedImageIndex === idx
+                                                ? "border-[#C9A96E] opacity-100 shadow-sm"
+                                                : "border-transparent opacity-50 hover:opacity-90"
+                                        }`}
+                                        style={{ width: "60px", height: "76px", backgroundColor: "#f2efe9" }}
                                     >
                                         <img
                                             src={img.url}
@@ -210,10 +208,68 @@ const ProductDetail = () => {
                                 ))}
                             </div>
                         )}
+
+                        {/* Main Image with Prev / Next Arrows */}
+                        <div
+                            className="relative flex-1 overflow-hidden group"
+                            style={{ aspectRatio: "2/3", backgroundColor: "#f2efe9", border: "1px solid #e4e2df" }}
+                        >
+                            <img
+                                src={currentImageUrl}
+                                alt={product.title}
+                                className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                                onError={(e) => { e.currentTarget.src = "/clothing_brand_login.jpg"; }}
+                            />
+
+                            {/* Left Arrow */}
+                            {totalImages > 1 && (
+                                <button
+                                    onClick={handlePrevImage}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-[#fbf9f6]/80 hover:bg-[#C9A96E] text-[#1b1c1a] transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm cursor-pointer"
+                                    style={{ backdropFilter: "blur(4px)" }}
+                                    aria-label="Previous image"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="15 18 9 12 15 6" />
+                                    </svg>
+                                </button>
+                            )}
+
+                            {/* Right Arrow */}
+                            {totalImages > 1 && (
+                                <button
+                                    onClick={handleNextImage}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-[#fbf9f6]/80 hover:bg-[#C9A96E] text-[#1b1c1a] transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm cursor-pointer"
+                                    style={{ backdropFilter: "blur(4px)" }}
+                                    aria-label="Next image"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="9 18 15 12 9 6" />
+                                    </svg>
+                                </button>
+                            )}
+
+                            {/* Dot Indicators */}
+                            {totalImages > 1 && (
+                                <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                    {imagesList.map((_, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedImageIndex(idx)}
+                                            className={`rounded-full transition-all duration-200 cursor-pointer ${
+                                                selectedImageIndex === idx
+                                                    ? "w-4 h-1.5 bg-[#C9A96E]"
+                                                    : "w-1.5 h-1.5 bg-[#fbf9f6]/60 hover:bg-[#fbf9f6]"
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* ── RIGHT: PRODUCT DETAILS & SPECIFICATIONS ── */}
-                    <div className="flex flex-col justify-between space-y-8">
+                    <div className="flex flex-col justify-between space-y-5">
                         <div>
                             {/* Gold Badge */}
                             <span className="text-[10px] uppercase tracking-[0.25em] font-semibold" style={{ color: "#C9A96E" }}>
@@ -222,28 +278,28 @@ const ProductDetail = () => {
 
                             {/* Product Title */}
                             <h1
-                                className="text-3xl sm:text-5xl font-light capitalize mt-2 mb-4 leading-tight"
+                                className="text-2xl sm:text-4xl font-light capitalize mt-1.5 mb-3 leading-tight"
                                 style={{ fontFamily: "'Cormorant Garamond', serif", color: "#1b1c1a" }}
                             >
                                 {product.title}
                             </h1>
 
                             {/* Price */}
-                            <p className="text-2xl font-medium text-[#1b1c1a] mb-6">
+                            <p className="text-xl font-medium text-[#1b1c1a] mb-4">
                                 {formatPrice(product.price)}
                             </p>
 
                             {/* Gold Divider Line */}
-                            <div className="w-16 h-px mb-6" style={{ backgroundColor: "#C9A96E" }} />
+                            <div className="w-12 h-px mb-4" style={{ backgroundColor: "#C9A96E" }} />
 
                             {/* Description */}
-                            <p className="text-sm font-light text-[#7A6E63] leading-relaxed mb-8">
+                            <p className="text-xs font-light text-[#7A6E63] leading-relaxed mb-5">
                                 {product.description || "An essential silhouette balancing razor-sharp tailoring with fluid ease. Finished with reinforced seams and signature atelier touches."}
                             </p>
 
                             {/* Provenance & Atelier Reference Box */}
                             <div
-                                className="p-5 text-[11px] space-y-3 border mb-8"
+                                className="p-4 text-[10px] space-y-2.5 border mb-5"
                                 style={{ backgroundColor: "#f5f3f0", borderColor: "#e4e2df" }}
                             >
                                 <div className="flex justify-between border-b pb-2" style={{ borderColor: "#e4e2df" }}>
@@ -262,11 +318,11 @@ const ProductDetail = () => {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="space-y-3 pt-4">
+                        <div className="space-y-2.5 pt-2">
                             {/* Buy Now Button (Replaces former Return button) */}
                             <button
                                 onClick={handleBuyNow}
-                                className="w-full py-4 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 cursor-pointer bg-[#1b1c1a] text-[#fbf9f6] hover:bg-[#C9A96E] hover:text-[#1b1c1a]"
+                                className="w-full py-3 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 cursor-pointer bg-[#1b1c1a] text-[#fbf9f6] hover:bg-[#C9A96E] hover:text-[#1b1c1a]"
                             >
                                 Buy Now — {formatPrice(product.price)}
                             </button>
@@ -274,7 +330,7 @@ const ProductDetail = () => {
                             {/* Add to Shopping Bag Button */}
                             <button
                                 onClick={handleAddToBag}
-                                className="w-full py-3.5 text-[10px] uppercase tracking-[0.2em] font-medium border border-[#1b1c1a] text-[#1b1c1a] hover:bg-[#1b1c1a] hover:text-[#fbf9f6] transition-all duration-300 cursor-pointer"
+                                className="w-full py-3 text-[10px] uppercase tracking-[0.2em] font-medium border border-[#1b1c1a] text-[#1b1c1a] hover:bg-[#1b1c1a] hover:text-[#fbf9f6] transition-all duration-300 cursor-pointer"
                                 style={{
                                     backgroundColor: addedToBag ? "#C9A96E" : "transparent",
                                     color: addedToBag ? "#1b1c1a" : "#1b1c1a",
@@ -300,8 +356,8 @@ const ProductDetail = () => {
             </main>
 
             {/* ── FOOTER ── */}
-            <footer className="border-t mt-20" style={{ backgroundColor: "#f5f3f0", borderColor: "#e4e2df" }}>
-                <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-12 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] uppercase tracking-[0.18em] text-[#7A6E63]">
+            <footer className="border-t mt-10" style={{ backgroundColor: "#f5f3f0", borderColor: "#e4e2df" }}>
+                <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] uppercase tracking-[0.18em] text-[#7A6E63]">
                     <p>© 2026 STITCHD Atelier. All Rights Reserved.</p>
                     <Link to="/" className="hover:text-[#1b1c1a] transition-colors">
                         Return to Main Collection →
