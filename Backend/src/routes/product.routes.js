@@ -1,13 +1,22 @@
 import express from 'express';
 import { authenticateSeller } from '../middlewares/auth.middleware.js';
-import { createProduct, getSellerProducts, getAllProducts, getProductDetailsById} from '../controllers/product.controller.js';
+import {
+    createProduct,
+    getSellerProducts,
+    getAllProducts,
+    getProductDetailsById,
+    addProductVariant,
+    updateVariantStock,
+    deleteVariant,
+    updateAllVariants
+} from '../controllers/product.controller.js';
 import { CreateProductValidator } from '../validator/product.validator.js';
 //Imagekit - Multer
 import multer from 'multer';
 
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits : {
+    limits: {
         fileSize: 5 * 1024 * 1024 //5MB
     }
 })
@@ -45,7 +54,33 @@ router.get('/', getAllProducts)
  * @access Public
  */
 router.get('/detail/:id', getProductDetailsById)
- 
 
+/**
+ * @route POST /api/products/:id/variants
+ * @desc Add a new variant to product
+ * @access Private (Seller only)
+ */
+router.post('/:ProductId/variants', authenticateSeller, upload.array('images', 7), addProductVariant);
+
+/**
+ * @route PATCH /api/products/:id/variants/:variantId/stock
+ * @desc Update variant stock
+ * @access Private (Seller only)
+ */
+router.patch('/:ProductId/variants/:variantId/stock', authenticateSeller, updateVariantStock);
+
+/**
+ * @route DELETE /api/products/:id/variants/:variantId
+ * @desc Delete a variant
+ * @access Private (Seller only)
+ */
+router.delete('/:ProductId/variants/:variantId', authenticateSeller, deleteVariant);
+
+/**
+ * @route PUT /api/products/:id/variants
+ * @desc Bulk update variants
+ * @access Private (Seller only)
+ */
+router.put('/:ProductId/variants', authenticateSeller, updateAllVariants);
 
 export default router 

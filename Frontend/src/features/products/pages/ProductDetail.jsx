@@ -192,11 +192,10 @@ const ProductDetail = () => {
                                     <button
                                         key={img._id || idx}
                                         onClick={() => setSelectedImageIndex(idx)}
-                                        className={`flex-shrink-0 overflow-hidden border transition-all duration-200 cursor-pointer ${
-                                            selectedImageIndex === idx
+                                        className={`flex-shrink-0 overflow-hidden border transition-all duration-200 cursor-pointer ${selectedImageIndex === idx
                                                 ? "border-[#C9A96E] opacity-100 shadow-sm"
                                                 : "border-transparent opacity-50 hover:opacity-90"
-                                        }`}
+                                            }`}
                                         style={{ width: "60px", height: "76px", backgroundColor: "#f2efe9" }}
                                     >
                                         <img
@@ -256,11 +255,10 @@ const ProductDetail = () => {
                                         <button
                                             key={idx}
                                             onClick={() => setSelectedImageIndex(idx)}
-                                            className={`rounded-full transition-all duration-200 cursor-pointer ${
-                                                selectedImageIndex === idx
+                                            className={`rounded-full transition-all duration-200 cursor-pointer ${selectedImageIndex === idx
                                                     ? "w-4 h-1.5 bg-[#C9A96E]"
                                                     : "w-1.5 h-1.5 bg-[#fbf9f6]/60 hover:bg-[#fbf9f6]"
-                                            }`}
+                                                }`}
                                         />
                                     ))}
                                 </div>

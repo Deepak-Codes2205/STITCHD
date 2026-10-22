@@ -29,3 +29,23 @@ export async function getProductDetailsById(productId) {
     const response = await productApiInstance.get(`/detail/${productId}`);
     return response.data;
 }
+
+export async function addProductVariant(productId, variantData) {
+    const response = await productApiInstance.post(`/${productId}/variants`, variantData);
+    return response.data;
+}
+
+export async function updateProductVariantStock(productId, variantId, stock) {
+    const response = await productApiInstance.patch(`/${productId}/variants/${variantId}/stock`, { stock });
+    return response.data;
+}
+
+export async function deleteProductVariant(productId, variantId) {
+    const response = await productApiInstance.delete(`/${productId}/variants/${variantId}`);
+    return response.data;
+}
+
+export async function updateAllProductVariants(productId, variants) {
+    const response = await productApiInstance.put(`/${productId}/variants`, { variants });
+    return response.data;
+}
