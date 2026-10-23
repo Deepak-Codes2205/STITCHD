@@ -31,6 +31,7 @@ export async function getProductDetailsById(productId) {
 }
 
 export async function addProductVariant(productId, variantData) {
+
     const response = await productApiInstance.post(`/${productId}/variants`, variantData);
     return response.data;
 }
@@ -48,4 +49,4 @@ export async function deleteProductVariant(productId, variantId) {
 export async function updateAllProductVariants(productId, variants) {
     const response = await productApiInstance.put(`/${productId}/variants`, { variants });
     return response.data;
-}
+}

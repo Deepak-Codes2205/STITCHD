@@ -24,13 +24,20 @@ const SellerProductDetails = () => {
     const [actionLoading, setActionLoading] = useState(false);
     const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
 
+    // ── Master Product Image Carousel & Swipe State ──
+    const [heroImageIndex, setHeroImageIndex] = useState(0);
+    const [touchStartX, setTouchStartX] = useState(null);
+    const [touchEndX, setTouchEndX] = useState(null);
+    const [dragStartX, setDragStartX] = useState(null);
+    const [copiedId, setCopiedId] = useState(false);
+
     // Filter & Search state for variants
     const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'
     const [searchQuery, setSearchQuery] = useState('');
 
     // ── New Variant Form State ──
     const [variantPrice, setVariantPrice] = useState({ amount: '', currency: 'INR' });
-    const [variantStock, setVariantStock] = useState('');
+    const [variantStock, setVariantStock] = useState(0);
 
     // Multi-Image Upload from Device (Max 7 images)
     const [variantImages, setVariantImages] = useState([]); // [{ file, preview }]
@@ -214,17 +221,10 @@ const SellerProductDetails = () => {
             return;
         }
 
-        // 3. Either Image OR Stock (> 0) is required
-        const hasImage = variantImages.length > 0 || selectedGalleryIndex !== null;
-        const stockNum = Math.max(0, parseInt(variantStock, 10) || 0);
-        const hasStock = stockNum > 0;
+        // 3. Stock defaults to 0, images are optional
+        const stockNum = variantStock === '' ? 0 : Math.max(0, parseInt(variantStock, 10) || 0);
 
-        if (!hasImage && !hasStock) {
-            triggerToast("Please provide either at least one image or a stock quantity (> 0) for this variant.", "error");
-            return;
-        }
-
-        // 4. Build FormData with up to 7 device images
+        // 4. Build FormData with device images (if provided) or gallery image (if selected)
         const formData = new FormData();
 
         if (variantImages.length > 0) {
@@ -257,12 +257,12 @@ const SellerProductDetails = () => {
                 await fetchProductDetails();
             }
 
-            triggerToast("Variant created with allocated images & stock!");
+            triggerToast("Variant created successfully!");
 
             // Reset dynamic fields and uploaded files
             handleClearAllImages();
             setSelectedGalleryIndex(null);
-            setVariantStock('');
+            setVariantStock(0);
             setAttributesList([
                 { key: 'Color', value: '' },
                 { key: 'Size', value: '' }
@@ -397,6 +397,86 @@ const SellerProductDetails = () => {
         return true;
     });
 
+    // ── Master Product Imagery & Swipe Engine ──
+    const masterImages = product?.images && product.images.length > 0 ? product.images : [];
+    const totalMasterImages = masterImages.length;
+    const safeHeroIndex = totalMasterImages > 0
+        ? ((heroImageIndex % totalMasterImages) + totalMasterImages) % totalMasterImages
+        : 0;
+    const activeHeroImgUrl = masterImages[safeHeroIndex]?.url || "/clothing_brand_login.jpg";
+
+    const handlePrevMasterImage = (e) => {
+        if (e) e.stopPropagation();
+        if (totalMasterImages <= 1) return;
+        setHeroImageIndex(prev => (prev === 0 ? totalMasterImages - 1 : prev - 1));
+    };
+
+    const handleNextMasterImage = (e) => {
+        if (e) e.stopPropagation();
+        if (totalMasterImages <= 1) return;
+        setHeroImageIndex(prev => (prev === totalMasterImages - 1 ? 0 : prev + 1));
+    };
+
+    // Touch Swipe Handlers (Left/Right)
+    const handleTouchStart = (e) => {
+        setTouchStartX(e.targetTouches[0].clientX);
+    };
+
+    const handleTouchMove = (e) => {
+        setTouchEndX(e.targetTouches[0].clientX);
+    };
+
+    const handleTouchEnd = () => {
+        if (touchStartX === null || touchEndX === null) return;
+        const diffX = touchStartX - touchEndX;
+        const minSwipeDistance = 40;
+        if (diffX > minSwipeDistance) {
+            handleNextMasterImage();
+        } else if (diffX < -minSwipeDistance) {
+            handlePrevMasterImage();
+        }
+        setTouchStartX(null);
+        setTouchEndX(null);
+    };
+
+    // Mouse Drag Swipe Handlers
+    const handleMouseDown = (e) => {
+        setDragStartX(e.clientX);
+    };
+
+    const handleMouseUp = (e) => {
+        if (dragStartX === null) return;
+        const diffX = dragStartX - e.clientX;
+        const minDragDistance = 50;
+        if (diffX > minDragDistance) {
+            handleNextMasterImage();
+        } else if (diffX < -minDragDistance) {
+            handlePrevMasterImage();
+        }
+        setDragStartX(null);
+    };
+
+    // Helper: Copy product ID
+    const handleCopyProductId = () => {
+        if (!product?._id) return;
+        navigator.clipboard?.writeText(product._id);
+        setCopiedId(true);
+        triggerToast("Product Spec ID copied to clipboard!");
+        setTimeout(() => setCopiedId(false), 2500);
+    };
+
+    // Helper: Format Archive Date
+    const formatArchiveDate = (dateStr) => {
+        if (!dateStr) return "Archive Original";
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return "Archive Original";
+            return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+        } catch {
+            return "Archive Original";
+        }
+    };
+
     return (
         <div
             className="min-h-screen selection:bg-[#C9A96E]/30 text-[#1b1c1a]"
@@ -411,11 +491,10 @@ const SellerProductDetails = () => {
             {/* ── TOP TOAST NOTIFICATION ── */}
             {notification.show && (
                 <div
-                    className={`fixed top-4 right-4 z-50 px-5 py-3 border text-xs uppercase tracking-wider font-medium shadow-lg transition-all duration-300 flex items-center gap-3 ${
-                        notification.type === 'error'
-                            ? 'bg-[#ffebee] border-[#ffcdd2] text-[#c62828]'
-                            : 'bg-[#1b1c1a] border-[#C9A96E] text-[#fbf9f6]'
-                    }`}
+                    className={`fixed top-4 right-4 z-50 px-5 py-3 border text-xs uppercase tracking-wider font-medium shadow-lg transition-all duration-300 flex items-center gap-3 ${notification.type === 'error'
+                        ? 'bg-[#ffebee] border-[#ffcdd2] text-[#c62828]'
+                        : 'bg-[#1b1c1a] border-[#C9A96E] text-[#fbf9f6]'
+                        }`}
                 >
                     <span className="text-[#C9A96E]">✦</span>
                     <span>{notification.message}</span>
@@ -474,93 +553,255 @@ const SellerProductDetails = () => {
 
                 {/* ── PRODUCT OVERVIEW HERO CARD ── */}
                 <section
-                    className="border p-6 sm:p-8"
+                    className="border p-6 sm:p-8 lg:p-10 shadow-xs"
                     style={{ backgroundColor: "#f5f3f0", borderColor: "#e4e2df" }}
                 >
-                    <div className="flex flex-col lg:flex-row gap-8 items-start justify-between">
-                        {/* Left: Product Images Thumbnail Strip & Main */}
-                        <div className="flex gap-4 w-full lg:w-auto">
-                            {product.images && product.images.length > 0 ? (
-                                <div className="w-28 sm:w-36 aspect-[3/4] flex-shrink-0 border border-[#e4e2df] overflow-hidden bg-white">
-                                    <img
-                                        src={product.images[0]?.url || "/clothing_brand_login.jpg"}
-                                        alt={product.title}
-                                        className="w-full h-full object-cover object-top"
-                                        onError={(e) => { e.currentTarget.src = "/clothing_brand_login.jpg"; }}
-                                    />
+                    <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start justify-between">
+
+                        {/* ── LEFT: COMPACT PRODUCT GALLERY WITH TOUCH/MOUSE SWIPE ── */}
+                        <div className="w-full sm:w-60 md:w-64 lg:w-72 max-w-[280px] flex-shrink-0 space-y-2.5 mx-auto sm:mx-0">
+                            <div
+                                className="relative aspect-[3/4] border border-[#e4e2df] overflow-hidden bg-white shadow-xs select-none cursor-grab active:cursor-grabbing group"
+                                onTouchStart={handleTouchStart}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={handleTouchEnd}
+                                onMouseDown={handleMouseDown}
+                                onMouseUp={handleMouseUp}
+                            >
+                                <img
+                                    src={activeHeroImgUrl}
+                                    alt={`${product.title} - angle ${safeHeroIndex + 1}`}
+                                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105 pointer-events-none"
+                                    onError={(e) => { e.currentTarget.src = "/clothing_brand_login.jpg"; }}
+                                    draggable="false"
+                                />
+
+                                {/* Top Floating Badges */}
+                                <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
+                                    <span className="text-[8px] uppercase tracking-[0.2em] font-medium bg-[#1b1c1a]/85 text-[#fbf9f6] px-2 py-0.5 backdrop-blur-xs">
+                                        Master Spec
+                                    </span>
+                                    {totalMasterImages > 1 && (
+                                        <span className="text-[9px] font-mono font-medium bg-[#1b1c1a]/85 text-[#fbf9f6] px-2 py-0.5 backdrop-blur-xs">
+                                            <span className="text-[#C9A96E]">{safeHeroIndex + 1}</span> / {totalMasterImages}
+                                        </span>
+                                    )}
                                 </div>
-                            ) : (
-                                <div className="w-28 aspect-[3/4] flex items-center justify-center bg-[#eae7e1] text-[#7A6E63] text-xs">
-                                    No Image
+
+                                {/* Previous Image Arrow */}
+                                {totalMasterImages > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={handlePrevMasterImage}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-[#1b1c1a]/80 hover:bg-[#C9A96E] text-[#fbf9f6] hover:text-[#1b1c1a] transition-all duration-200 cursor-pointer shadow-md opacity-90 sm:opacity-0 sm:group-hover:opacity-100 backdrop-blur-xs"
+                                        title="Previous angle (or swipe right)"
+                                        aria-label="Previous angle"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <polyline points="15 18 9 12 15 6" />
+                                        </svg>
+                                    </button>
+                                )}
+
+                                {/* Next Image Arrow */}
+                                {totalMasterImages > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleNextMasterImage}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-[#1b1c1a]/80 hover:bg-[#C9A96E] text-[#fbf9f6] hover:text-[#1b1c1a] transition-all duration-200 cursor-pointer shadow-md opacity-90 sm:opacity-0 sm:group-hover:opacity-100 backdrop-blur-xs"
+                                        title="Next angle (or swipe left)"
+                                        aria-label="Next angle"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <polyline points="9 18 15 12 9 6" />
+                                        </svg>
+                                    </button>
+                                )}
+
+                                {/* Bottom Swipe Hint & Dot Indicators */}
+                                {totalMasterImages > 1 && (
+                                    <div className="absolute bottom-2.5 left-0 right-0 flex flex-col items-center gap-1 pointer-events-none">
+                                        <div className="flex items-center gap-1.5 pointer-events-auto">
+                                            {masterImages.map((_, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); setHeroImageIndex(idx); }}
+                                                    className={`transition-all duration-300 cursor-pointer ${safeHeroIndex === idx
+                                                        ? "w-4 h-1 bg-[#C9A96E]"
+                                                        : "w-1.5 h-1 bg-[#fbf9f6]/70 hover:bg-[#fbf9f6]"
+                                                        }`}
+                                                    aria-label={`Jump to angle ${idx + 1}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Thumbnail Selector Strip */}
+                            {totalMasterImages > 1 && (
+                                <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+                                    {masterImages.map((img, idx) => (
+                                        <button
+                                            key={img._id || idx}
+                                            type="button"
+                                            onClick={() => setHeroImageIndex(idx)}
+                                            className={`relative w-12 h-15 flex-shrink-0 border overflow-hidden transition-all duration-200 cursor-pointer bg-white ${safeHeroIndex === idx
+                                                ? "border-[#C9A96E] ring-1 ring-[#C9A96E]/50 opacity-100"
+                                                : "border-[#e4e2df] opacity-60 hover:opacity-100"
+                                                }`}
+                                        >
+                                            <img
+                                                src={img.url}
+                                                alt={`Angle thumbnail ${idx + 1}`}
+                                                className="w-full h-full object-cover object-top"
+                                                onError={(e) => { e.currentTarget.src = "/clothing_brand_login.jpg"; }}
+                                            />
+                                            <span className="absolute bottom-0.5 right-0.5 text-[7px] font-mono bg-[#1b1c1a]/80 text-[#fbf9f6] px-1">
+                                                #{idx + 1}
+                                            </span>
+                                        </button>
+                                    ))}
                                 </div>
                             )}
+                        </div>
 
-                            {/* Info */}
-                            <div className="flex-1 space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#C9A96E]">
-                                        Master Piece
+                        {/* ── RIGHT: COMPLETE INITIAL PRODUCT SPECIFICATION & DETAILS ── */}
+                        <div className="flex-1 space-y-6 min-w-0 w-full">
+                            {/* Eyebrow Identification Row */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4 border-[#e4e2df]">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#C9A96E] flex items-center gap-1.5">
+                                        <span>✦</span> Master Archive Piece
                                     </span>
-                                    <span className="text-[10px] text-[#7A6E63]">·</span>
-                                    <span className="font-mono text-[10px] text-[#7A6E63]">
+                                    <span className="text-[#d0c5b5]">·</span>
+                                    <span className="font-mono text-[10px] text-[#7A6E63] bg-[#fbf9f6] px-2 py-0.5 border border-[#e4e2df]">
                                         ID: {product._id}
                                     </span>
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyProductId}
+                                        className="text-[9px] uppercase tracking-wider text-[#7A6E63] hover:text-[#1b1c1a] border border-[#e4e2df] hover:border-[#1b1c1a] px-2 py-0.5 transition-colors cursor-pointer"
+                                        title="Copy Archive Spec ID"
+                                    >
+                                        {copiedId ? "✓ Copied" : "Copy ID"}
+                                    </button>
                                 </div>
 
+                                <Link
+                                    to={`/product/${product._id}`}
+                                    target="_blank"
+                                    className="text-[10px] uppercase tracking-[0.2em] font-medium text-[#7A6E63] hover:text-[#1b1c1a] hover:underline underline-offset-4 transition-colors flex items-center gap-1"
+                                >
+                                    View Live Listing ↗
+                                </Link>
+                            </div>
+
+                            {/* Title & Valuation */}
+                            <div>
                                 <h1
-                                    className="text-2xl sm:text-3xl font-light leading-snug"
+                                    className="text-3xl sm:text-4xl lg:text-5xl font-light leading-tight tracking-tight capitalize"
                                     style={{ fontFamily: "'Cormorant Garamond', serif", color: "#1b1c1a" }}
                                 >
                                     {product.title}
                                 </h1>
-
-                                <p className="text-sm font-medium text-[#1b1c1a]">
-                                    Base Price: {formatPrice(product.price?.amount, product.price?.currency)}
-                                </p>
-
-                                <p className="text-xs text-[#7A6E63] line-clamp-2 max-w-2xl font-light leading-relaxed">
-                                    {product.description || "No description provided."}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Right: Quick Inventory KPIs */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto border-t lg:border-t-0 lg:border-l pt-4 lg:pt-0 lg:pl-8 border-[#e4e2df]">
-                            <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
-                                <span className="block text-[9px] uppercase tracking-[0.2em] text-[#7A6E63]">
-                                    Total Variants
-                                </span>
-                                <span className="text-xl font-light mt-1 block" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                                    {totalVariantsCount}
-                                </span>
+                                <div className="flex items-baseline gap-3 mt-2.5">
+                                    <span className="text-2xl sm:text-3xl font-light text-[#1b1c1a]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                                        {formatPrice(product.price?.amount, product.price?.currency)}
+                                    </span>
+                                    <span className="text-[10px] uppercase tracking-[0.2em] text-[#7A6E63]">
+                                        Base Retail Valuation
+                                    </span>
+                                </div>
                             </div>
 
-                            <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
-                                <span className="block text-[9px] uppercase tracking-[0.2em] text-[#7A6E63]">
-                                    Total Units
+                            {/* Full Complete Description */}
+                            <div className="space-y-1.5">
+                                <span className="text-[9px] uppercase tracking-[0.25em] text-[#7A6E63] font-semibold block">
+                                    Piece Synopsis & Narrative
                                 </span>
-                                <span className="text-xl font-light mt-1 block text-[#1b1c1a]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                                    {totalStockCount}
-                                </span>
+                                <div className="bg-[#fbf9f6] p-4 sm:p-5 border border-[#e4e2df]">
+                                    <p className="text-xs sm:text-sm font-light text-[#3f3a34] leading-relaxed whitespace-pre-line">
+                                        {product.description || "An essential silhouette balancing razor-sharp tailoring with fluid ease. Finished with reinforced seams and signature atelier touches."}
+                                    </p>
+                                </div>
                             </div>
 
-                            <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
-                                <span className="block text-[9px] uppercase tracking-[0.2em] text-[#7A6E63]">
-                                    Low Stock (≤5)
-                                </span>
-                                <span className={`text-xl font-light mt-1 block ${lowStockCount > 0 ? 'text-[#b45309]' : 'text-[#7A6E63]'}`} style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                                    {lowStockCount}
-                                </span>
+                            {/* Archive Specifications Grid */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
+                                    <span className="text-[9px] uppercase tracking-[0.18em] text-[#7A6E63] block">
+                                        Archive Registered
+                                    </span>
+                                    <span className="text-xs font-medium text-[#1b1c1a] mt-1 block">
+                                        {formatArchiveDate(product.createdAt)}
+                                    </span>
+                                </div>
+
+                                <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
+                                    <span className="text-[9px] uppercase tracking-[0.18em] text-[#7A6E63] block">
+                                        Master Angles
+                                    </span>
+                                    <span className="text-xs font-medium text-[#1b1c1a] mt-1 block">
+                                        {totalMasterImages} {totalMasterImages === 1 ? 'Angle Photo' : 'Curated Angles'}
+                                    </span>
+                                </div>
+
+                                <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
+                                    <span className="text-[9px] uppercase tracking-[0.18em] text-[#7A6E63] block">
+                                        Vault Status
+                                    </span>
+                                    <span className={`text-xs font-medium mt-1 block ${totalStockCount > 0 ? 'text-[#15803d]' : 'text-[#dc2626]'}`}>
+                                        {totalStockCount > 0 ? `In Stock (${totalStockCount} Units)` : 'Awaiting Allocation'}
+                                    </span>
+                                </div>
                             </div>
 
-                            <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
-                                <span className="block text-[9px] uppercase tracking-[0.2em] text-[#7A6E63]">
-                                    Out of Stock
+                            {/* Real-time Inventory KPIs Bar */}
+                            <div className="space-y-2 pt-2 border-t border-[#e4e2df]">
+                                <span className="text-[9px] uppercase tracking-[0.25em] text-[#7A6E63] font-semibold block">
+                                    Inventory Performance Matrix
                                 </span>
-                                <span className={`text-xl font-light mt-1 block ${outOfStockCount > 0 ? 'text-[#dc2626]' : 'text-[#7A6E63]'}`} style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                                    {outOfStockCount}
-                                </span>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
+                                        <span className="block text-[9px] uppercase tracking-[0.2em] text-[#7A6E63]">
+                                            Total Variants
+                                        </span>
+                                        <span className="text-2xl font-light mt-1 block text-[#1b1c1a]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                                            {totalVariantsCount}
+                                        </span>
+                                    </div>
+
+                                    <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
+                                        <span className="block text-[9px] uppercase tracking-[0.2em] text-[#7A6E63]">
+                                            Total Units
+                                        </span>
+                                        <span className="text-2xl font-light mt-1 block text-[#1b1c1a]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                                            {totalStockCount}
+                                        </span>
+                                    </div>
+
+                                    <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
+                                        <span className="block text-[9px] uppercase tracking-[0.2em] text-[#7A6E63]">
+                                            Low Stock (≤5)
+                                        </span>
+                                        <span className={`text-2xl font-light mt-1 block ${lowStockCount > 0 ? 'text-[#b45309]' : 'text-[#7A6E63]'}`} style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                                            {lowStockCount}
+                                        </span>
+                                    </div>
+
+                                    <div className="p-3 bg-[#fbf9f6] border border-[#e4e2df]">
+                                        <span className="block text-[9px] uppercase tracking-[0.2em] text-[#7A6E63]">
+                                            Out of Stock
+                                        </span>
+                                        <span className={`text-2xl font-light mt-1 block ${outOfStockCount > 0 ? 'text-[#dc2626]' : 'text-[#7A6E63]'}`} style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                                            {outOfStockCount}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
+
                         </div>
                     </div>
                 </section>
@@ -699,28 +940,16 @@ const SellerProductDetails = () => {
                                     </div>
                                 </div>
 
-                                {/* ALLOCATION REQUIREMENT HELPER */}
-                                {(() => {
-                                    const currentHasImg = variantImages.length > 0 || selectedGalleryIndex !== null;
-                                    const currentHasStk = variantStock !== '' && parseInt(variantStock, 10) > 0;
-                                    const isReqMet = currentHasImg || currentHasStk;
-
-                                    return (
-                                        <div className={`p-2.5 border text-[10px] flex items-center justify-between transition-colors ${
-                                            isReqMet 
-                                                ? 'bg-[#f4f7f4] border-[#c8e6c9] text-[#2e7d32]' 
-                                                : 'bg-[#fff9f0] border-[#ffe0b2] text-[#e65100]'
-                                        }`}>
-                                            <span className="flex items-center gap-1.5">
-                                                <span>✦</span>
-                                                <span>Requirement: Provide <strong>image(s)</strong> OR <strong>stock &gt; 0</strong></span>
-                                            </span>
-                                            <span className="font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 border" style={{ borderColor: isReqMet ? '#a5d6a7' : '#ffcc80' }}>
-                                                {isReqMet ? '✓ Satisfied' : 'Pending'}
-                                            </span>
-                                        </div>
-                                    );
-                                })()}
+                                {/* ALLOCATION INFO NOTE */}
+                                <div className="p-2.5 border border-[#e4e2df] bg-[#fbf9f6] text-[10px] text-[#7A6E63] flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="text-[#C9A96E]">✦</span>
+                                        <span>Stock defaults to <strong>0</strong> · Imagery is <strong>optional</strong></span>
+                                    </span>
+                                    <span className="font-mono text-[9px] uppercase tracking-wider text-[#7A6E63]">
+                                        Default: 0 units
+                                    </span>
+                                </div>
 
                                 {/* 3. INITIAL STOCK ALLOCATION */}
                                 <div className="pt-2 border-t border-[#e4e2df]">
@@ -729,9 +958,7 @@ const SellerProductDetails = () => {
                                             Initial Vault Stock (Units)
                                         </label>
                                         <span className="text-[9px] uppercase tracking-wider text-[#7A6E63]">
-                                            {(variantImages.length > 0 || selectedGalleryIndex !== null)
-                                                ? "Optional (Image provided)"
-                                                : "Required if no photo"}
+                                            Optional (Default: 0)
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -768,9 +995,7 @@ const SellerProductDetails = () => {
                                         </label>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[9px] uppercase tracking-wider text-[#7A6E63]">
-                                                {(variantStock !== '' && parseInt(variantStock, 10) > 0)
-                                                    ? "Optional (Stock set)"
-                                                    : "Required if stock is 0"}
+                                                Optional
                                             </span>
                                             <span className="text-[10px] font-medium px-2 py-0.5 border border-[#e4e2df] bg-[#f5f3f0] text-[#7A6E63] tabular-nums">
                                                 {variantImages.length} / {MAX_VARIANT_IMAGES} Photos
@@ -876,11 +1101,10 @@ const SellerProductDetails = () => {
                                                         key={img._id || idx}
                                                         type="button"
                                                         onClick={() => handleSelectGalleryImage(idx)}
-                                                        className={`w-12 h-14 border overflow-hidden transition-all duration-200 cursor-pointer ${
-                                                            selectedGalleryIndex === idx
-                                                                ? "border-[#C9A96E] ring-2 ring-[#C9A96E]/40"
-                                                                : "border-[#e4e2df] opacity-60 hover:opacity-100"
-                                                        }`}
+                                                        className={`w-12 h-14 border overflow-hidden transition-all duration-200 cursor-pointer ${selectedGalleryIndex === idx
+                                                            ? "border-[#C9A96E] ring-2 ring-[#C9A96E]/40"
+                                                            : "border-[#e4e2df] opacity-60 hover:opacity-100"
+                                                            }`}
                                                         title={`Use master image ${idx + 1}`}
                                                     >
                                                         <img
@@ -954,11 +1178,10 @@ const SellerProductDetails = () => {
                                         key={tab.id}
                                         type="button"
                                         onClick={() => setStatusFilter(tab.id)}
-                                        className={`px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-all cursor-pointer ${
-                                            statusFilter === tab.id
-                                                ? 'bg-[#1b1c1a] text-[#fbf9f6] font-medium'
-                                                : 'bg-[#f5f3f0] text-[#7A6E63] hover:text-[#1b1c1a] border border-[#e4e2df]'
-                                        }`}
+                                        className={`px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition-all cursor-pointer ${statusFilter === tab.id
+                                            ? 'bg-[#1b1c1a] text-[#fbf9f6] font-medium'
+                                            : 'bg-[#f5f3f0] text-[#7A6E63] hover:text-[#1b1c1a] border border-[#e4e2df]'
+                                            }`}
                                     >
                                         {tab.label}
                                     </button>
@@ -992,12 +1215,18 @@ const SellerProductDetails = () => {
                                         const hasUnsavedChanges = vStock !== (variant.stock ?? 0);
                                         const isSavingThis = updatingStockId === variant._id;
 
-                                        // Variant images list (up to 7)
-                                        const vImages = variant.image && variant.image.length > 0
+                                        // Variant images list (up to 7) - with master product fallback
+                                        const rawImages = Array.isArray(variant.image)
                                             ? variant.image
-                                            : [{ url: product.images?.[0]?.url || '/clothing_brand_login.jpg' }];
+                                            : variant.image ? [variant.image] : [];
+                                        const hasCustomImages = rawImages.length > 0;
+                                        const vImages = hasCustomImages
+                                            ? rawImages.map(img => (typeof img === 'string' ? { url: img } : img))
+                                            : (product.images && product.images.length > 0
+                                                ? [product.images[0]]
+                                                : [{ url: '/clothing_brand_login.jpg' }]);
 
-                                        const primaryImgUrl = vImages[0]?.url || '/clothing_brand_login.jpg';
+                                        const primaryImgUrl = vImages[0]?.url || product.images?.[0]?.url || '/clothing_brand_login.jpg';
 
                                         // Attributes object/map to array
                                         const attrEntries = variant.attributes instanceof Map
@@ -1007,11 +1236,10 @@ const SellerProductDetails = () => {
                                         return (
                                             <div
                                                 key={variant._id}
-                                                className={`border p-4 transition-all duration-200 ${
-                                                    hasUnsavedChanges
-                                                        ? 'border-[#C9A96E] bg-[#fdfbf7]'
-                                                        : 'border-[#e4e2df] bg-[#ffffff] hover:border-[#d0c5b5]'
-                                                }`}
+                                                className={`border p-4 transition-all duration-200 ${hasUnsavedChanges
+                                                    ? 'border-[#C9A96E] bg-[#fdfbf7]'
+                                                    : 'border-[#e4e2df] bg-[#ffffff] hover:border-[#d0c5b5]'
+                                                    }`}
                                             >
                                                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
 
@@ -1127,11 +1355,10 @@ const SellerProductDetails = () => {
                                                                 type="button"
                                                                 onClick={() => handleSaveVariantStock(variant._id)}
                                                                 disabled={isSavingThis}
-                                                                className={`px-2.5 h-7 text-[10px] uppercase tracking-wider font-medium transition-all duration-200 cursor-pointer ${
-                                                                    hasUnsavedChanges
-                                                                        ? 'bg-[#C9A96E] text-[#1b1c1a] hover:bg-[#b89556] shadow-sm'
-                                                                        : 'bg-[#1b1c1a] text-[#fbf9f6] hover:bg-[#C9A96E] hover:text-[#1b1c1a]'
-                                                                }`}
+                                                                className={`px-2.5 h-7 text-[10px] uppercase tracking-wider font-medium transition-all duration-200 cursor-pointer ${hasUnsavedChanges
+                                                                    ? 'bg-[#C9A96E] text-[#1b1c1a] hover:bg-[#b89556] shadow-sm'
+                                                                    : 'bg-[#1b1c1a] text-[#fbf9f6] hover:bg-[#C9A96E] hover:text-[#1b1c1a]'
+                                                                    }`}
                                                             >
                                                                 {isSavingThis ? "..." : hasUnsavedChanges ? "Save" : "Update"}
                                                             </button>

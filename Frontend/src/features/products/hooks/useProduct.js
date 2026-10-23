@@ -1,8 +1,8 @@
-import { 
-    createProduct, 
-    getSellerProduct, 
-    getAllProducts, 
-    getProductById, 
+import {
+    createProduct,
+    getSellerProduct,
+    getAllProducts,
+    getProductById,
     getProductDetailsById,
     addProductVariant,
     updateProductVariantStock,
@@ -67,6 +67,7 @@ export const useProduct = () => {
     async function handleAddProductVariant(productId, variantData) {
         try {
             const data = await addProductVariant(productId, variantData);
+            console.log(data.product)
             return data.product;
         } catch (error) {
             console.log(error);
@@ -104,10 +105,10 @@ export const useProduct = () => {
         }
     }
 
-    return { 
-        handleCreateproduct, 
-        handleCreateProduct: handleCreateproduct, 
-        handleGetSellerProduct, 
+    return {
+        handleCreateproduct,
+        handleCreateProduct: handleCreateproduct,
+        handleGetSellerProduct,
         handleGetAllProducts,
         handleGetProductById,
         handleGetProductDetailsById,

@@ -73,7 +73,8 @@ export async function getProductDetailsById(req, res) {
 export async function addProductVariant(req, res) {
     try {
         const productId = req.params.ProductId; 
-        let { stock, attributes, priceAmount, priceCurrency } = req.body;
+        let { stock, attributes, price } = req.body;
+        let{ priceAmount, priceCurrency } = price;
 
         const product = await productModel.findOne({ _id: productId, seller: req.user._id });
         if (!product) {
@@ -139,8 +140,8 @@ export async function addProductVariant(req, res) {
             stock: Number(stock) >= 0 ? Number(stock) : 0,
             attributes: attributes || {},
             price: {
-                amount: String(price?.amount || product.price?.amount || "0"),
-                currency: price?.currency || product.price?.currency || "INR"
+                amount: String(priceAmount || product.price?.amount || "0"),
+                currency: priceCurrency || product.price?.currency || "INR"
             }
         };
 
