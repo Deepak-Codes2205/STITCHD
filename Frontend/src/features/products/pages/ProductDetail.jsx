@@ -1,68 +1,286 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import { useProduct } from "../hooks/useProduct";
+
+// Helper to deduce main product attributes (e.g. Color: "Black") from title/description
+const getMainProductAttributes = (product, attrKeys) => {
+    if (product.attributes && Object.keys(product.attributes).length > 0) {
+        return product.attributes instanceof Map ? Object.fromEntries(product.attributes) : product.attributes;
+    }
+
+    const attrs = {};
+    const textToSearch = `${product.title || ""} ${product.description || ""}`.toLowerCase();
+
+    const KNOWN_COLORS = [
+        "Black", "White", "Brown", "Blue", "Navy", "Green", "Olive", "Grey", "Gray",
+        "Beige", "Cream", "Khaki", "Tan", "Charcoal", "Red", "Maroon", "Burgundy",
+        "Pink", "Yellow", "Orange", "Purple", "Ivory", "Camel", "Sand", "Rust", "Off-White"
+    ];
+
+    const KNOWN_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "Free Size", "One Size", "Regular", "Standard"];
+    const KNOWN_FITS = ["Relaxed", "Slim", "Regular", "Wide-Leg", "Oversized", "Straight", "Loose"];
+
+    attrKeys.forEach(key => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey === "color" || lowerKey === "colour") {
+            const matchedColor = KNOWN_COLORS.find(c => {
+                const regex = new RegExp(`\\b${c.toLowerCase()}\\b`, "i");
+                return regex.test(textToSearch);
+            });
+            attrs[key] = matchedColor || "Black";
+        } else if (lowerKey === "size") {
+            const matchedSize = KNOWN_SIZES.find(s => {
+                const regex = new RegExp(`\\b${s.toLowerCase()}\\b`, "i");
+                return regex.test(textToSearch);
+            });
+            attrs[key] = matchedSize || "Regular";
+        } else if (lowerKey === "fit") {
+            const matchedFit = KNOWN_FITS.find(f => {
+                const regex = new RegExp(`\\b${f.toLowerCase()}\\b`, "i");
+                return regex.test(textToSearch);
+            });
+            attrs[key] = matchedFit || "Standard";
+        } else {
+            attrs[key] = "Standard";
+        }
+    });
+
+    return attrs;
+};
 
 const ProductDetail = () => {
     // 1. Get the productId from the URL route (/product/:productId)
     const { productId } = useParams();
     const navigate = useNavigate();
 
-    // 2. Custom hook providing our API functions
-    const { handleGetProductDetailsById } = useProduct();
+    // 2. Custom hook providing API functions
+    const { handleGetProductDetailsById, handleGetProductById } = useProduct();
 
-    // 3. Local state for product data, selected image angle, and loading status
+    // 3. Local state
     const [product, setProduct] = useState(null);
-    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const [selectedImage, setSelectedImage] = useState(0);
+    const [selectedAttributes, setSelectedAttributes] = useState({});
     const [loading, setLoading] = useState(true);
     const [addedToBag, setAddedToBag] = useState(false);
 
-    // 4. Fetch product details when the component mounts or when productId changes
-    let isCurrent = true;
-    async function fetchProductDetails() {
-        setLoading(true);
-        setProduct(null);
-        try {
-            const data = await handleGetProductDetailsById(productId);
+    // 4. Fetch product details safely on mount or when productId changes
+    useEffect(() => {
+        let isCurrent = true;
 
-            if (isCurrent) {
-                setProduct(data ?? null);
-            }
-        } finally {
-            if (isCurrent) {
-                setLoading(false);
-                isCurrent = false;
+        async function fetchProductDetails() {
+            setLoading(true);
+            try {
+                const fetchFn = handleGetProductDetailsById || handleGetProductById;
+                const data = await fetchFn(productId);
+                if (isCurrent) {
+                    setProduct(data?.product || data || null);
+                }
+            } catch (error) {
+                console.error("Failed to fetch product details:", error);
+                if (isCurrent) {
+                    setProduct(null);
+                }
+            } finally {
+                if (isCurrent) {
+                    setLoading(false);
+                }
             }
         }
-    }
 
-
-    useEffect(() => {
         fetchProductDetails();
+
+        return () => {
+            isCurrent = false;
+        };
     }, [productId]);
 
-    console.log("Product details by id fetched:", product);
+    // 5. Build complete variants list including the main/base product
+    const allVariants = useMemo(() => {
+        if (!product) return [];
+        const variants = product.variants || [];
 
-    // Helper function to format price cleanly
-    const formatPrice = (priceObj) => {
-        if (!priceObj) return "₹0";
-        const amount = Number(priceObj.amount || 0).toLocaleString("en-IN");
-        return priceObj.currency === "INR" ? `₹ ${amount}` : `${priceObj.currency} ${amount}`;
+        // If no variants exist, product stands alone
+        if (variants.length === 0) return [];
+
+        // Collect all attribute keys used across variants
+        const attrKeysSet = new Set();
+        variants.forEach(v => {
+            const vAttrs = v.attributes instanceof Map ? Object.fromEntries(v.attributes) : (v.attributes || {});
+            Object.keys(vAttrs).forEach(k => attrKeysSet.add(k));
+        });
+
+        const attrKeysArray = Array.from(attrKeysSet);
+        if (attrKeysArray.length === 0) return variants;
+
+        // Derive attributes for the main product (e.g. Color: "Black")
+        const mainAttrs = getMainProductAttributes(product, attrKeysArray);
+
+        // Check if main product is already present in variants list
+        const alreadyExists = variants.some(v => {
+            const vAttrs = v.attributes instanceof Map ? Object.fromEntries(v.attributes) : (v.attributes || {});
+            return attrKeysArray.every(k =>
+                String(vAttrs[k] || "").trim().toLowerCase() === String(mainAttrs[k] || "").trim().toLowerCase()
+            );
+        });
+
+        if (alreadyExists) {
+            return variants;
+        }
+
+        // Create base variant representing the original main product
+        const mainVariant = {
+            _id: product._id,
+            isMainProduct: true,
+            price: product.price,
+            images: product.images,
+            image: product.images,
+            stock: product.stock !== undefined ? product.stock : null,
+            attributes: mainAttrs,
+            title: product.title,
+            description: product.description
+        };
+
+        // Main product first so it is default
+        return [mainVariant, ...variants];
+    }, [product]);
+
+    // 6. Aggregate available distinct attributes from all variants (including main product)
+    const availableAttributes = useMemo(() => {
+        if (!allVariants || allVariants.length === 0) return {};
+        const attrs = {};
+        allVariants.forEach(variant => {
+            if (variant.attributes) {
+                const vAttrs = variant.attributes instanceof Map
+                    ? Object.fromEntries(variant.attributes)
+                    : variant.attributes;
+                Object.entries(vAttrs).forEach(([key, value]) => {
+                    if (!attrs[key]) attrs[key] = new Set();
+                    attrs[key].add(value);
+                });
+            }
+        });
+        const result = {};
+        Object.keys(attrs).forEach(key => {
+            result[key] = Array.from(attrs[key]);
+        });
+        return result;
+    }, [allVariants]);
+
+    // 7. Initialize selected attributes with the first variant (main product)
+    useEffect(() => {
+        if (allVariants.length > 0) {
+            const firstVariant = allVariants[0];
+            const initialAttrs = firstVariant.attributes instanceof Map
+                ? Object.fromEntries(firstVariant.attributes)
+                : (firstVariant.attributes || {});
+            setSelectedAttributes(initialAttrs);
+        } else {
+            setSelectedAttributes({});
+        }
+    }, [allVariants]);
+
+    // 8. Find active variant that matches selectedAttributes
+    const activeVariant = useMemo(() => {
+        if (!allVariants || allVariants.length === 0) return null;
+        return allVariants.find(v => {
+            if (!v.attributes) return false;
+            const vAttrs = v.attributes instanceof Map ? Object.fromEntries(v.attributes) : v.attributes;
+            const vKeys = Object.keys(vAttrs);
+            const sKeys = Object.keys(selectedAttributes);
+            const isMatch = vKeys.every(k => String(vAttrs[k] || "").trim().toLowerCase() === String(selectedAttributes[k] || "").trim().toLowerCase());
+            return vKeys.length === sKeys.length && isMatch;
+        }) || allVariants[0];
+    }, [allVariants, selectedAttributes]);
+
+    // 9. Reset selected image whenever activeVariant changes
+    useEffect(() => {
+        setSelectedImage(0);
+    }, [activeVariant]);
+
+    // 10. Handle attribute change with exact match or best fallback
+    const handleAttributeChange = (attrName, value) => {
+        const newAttrs = { ...selectedAttributes, [attrName]: value };
+
+        // 1. Try exact match in allVariants
+        const exactMatch = allVariants.find(v => {
+            const vAttrs = v.attributes instanceof Map ? Object.fromEntries(v.attributes) : (v.attributes || {});
+            const vKeys = Object.keys(vAttrs);
+            const newKeys = Object.keys(newAttrs);
+            return newKeys.every(k => String(newAttrs[k] || "").trim().toLowerCase() === String(vAttrs[k] || "").trim().toLowerCase()) &&
+                vKeys.every(k => String(newAttrs[k] || "").trim().toLowerCase() === String(vAttrs[k] || "").trim().toLowerCase());
+        });
+
+        if (exactMatch) {
+            const exactAttrs = exactMatch.attributes instanceof Map
+                ? Object.fromEntries(exactMatch.attributes)
+                : (exactMatch.attributes || {});
+            setSelectedAttributes(exactAttrs);
+        } else {
+            // 2. Fallback to any variant having this attribute value
+            const fallbackVariant = allVariants.find(v => {
+                const vAttrs = v.attributes instanceof Map ? Object.fromEntries(v.attributes) : (v.attributes || {});
+                return String(vAttrs[attrName] || "").trim().toLowerCase() === String(value).trim().toLowerCase();
+            });
+            if (fallbackVariant) {
+                const fbAttrs = fallbackVariant.attributes instanceof Map
+                    ? Object.fromEntries(fallbackVariant.attributes)
+                    : (fallbackVariant.attributes || {});
+                setSelectedAttributes(fbAttrs);
+            } else {
+                setSelectedAttributes(newAttrs);
+            }
+        }
     };
 
-    // Feedback for clicking "Add to Bag"
+    // ── FALLBACK TO MAIN PRODUCT VALUE RESOLUTION ──
+    // Images: check variant's 'images' or 'image' array; fallback to product.images
+    const variantImages = (activeVariant?.images && activeVariant.images.length > 0)
+        ? activeVariant.images
+        : (activeVariant?.image && activeVariant.image.length > 0 ? activeVariant.image : null);
+
+    const displayImages = (variantImages && variantImages.length > 0)
+        ? variantImages
+        : (product?.images && product.images.length > 0 ? product.images : [{ url: "/clothing_brand_login.jpg" }]);
+
+    // Price: check activeVariant.price; fallback to product.price
+    const displayPrice = (activeVariant?.price?.amount !== undefined && activeVariant?.price?.amount !== null && activeVariant?.price?.amount !== "")
+        ? activeVariant.price
+        : product?.price;
+
+    // Stock: check activeVariant.stock; fallback to product.stock
+    const displayStock = (activeVariant && activeVariant.stock !== undefined && activeVariant.stock !== null)
+        ? activeVariant.stock
+        : (product?.stock !== undefined ? product.stock : null);
+
+    // Title & Description fallback
+    const displayTitle = activeVariant?.title || product?.title || "Archive Piece";
+    const displayDescription = activeVariant?.description || product?.description || "An essential silhouette balancing razor-sharp tailoring with fluid ease. Finished with reinforced seams and signature atelier touches.";
+
+    // Price formatting helper
+    const formatPriceDisplay = (priceObj) => {
+        if (!priceObj) return "INR 0";
+        const curr = priceObj.currency || "INR";
+        const amt = Number(priceObj.amount || 0).toLocaleString("en-IN");
+        return `${curr} ${amt}`;
+    };
+
+    const isOutOfStock = displayStock !== null && displayStock !== undefined && Number(displayStock) <= 0;
+
+    // Handle "Add to Bag"
     const handleAddToBag = () => {
         setAddedToBag(true);
         setTimeout(() => setAddedToBag(false), 2500);
     };
 
-    // Handle "Buy Now" action
+    // Handle "Buy Now"
     const handleBuyNow = () => {
-
-        alert(`Proceeding to checkout for "${product.title}"`);
+        const specSummary = Object.keys(selectedAttributes).length > 0
+            ? ` (${Object.entries(selectedAttributes).map(([k, v]) => `${k}: ${v}`).join(", ")})`
+            : "";
+        alert(`Proceeding to checkout for "${displayTitle}"${specSummary} — ${formatPriceDisplay(displayPrice)}`);
     };
 
     // ── LOADING STATE ──
-
     if (loading) {
         return (
             <div
@@ -70,7 +288,7 @@ const ProductDetail = () => {
                 style={{ backgroundColor: "#fbf9f6", fontFamily: "'Inter', sans-serif" }}
             >
                 <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-xs uppercase tracking-[0.25em] text-[#7A6E63]">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-[#7A6E63] font-medium animate-pulse">
                     Retrieving Atelier Archive Piece...
                 </p>
             </div>
@@ -92,7 +310,7 @@ const ProductDetail = () => {
                 </p>
                 <button
                     onClick={() => navigate("/")}
-                    className="py-3 px-8 text-[11px] uppercase tracking-[0.2em] font-medium bg-[#1b1c1a] text-[#fbf9f6] hover:bg-[#C9A96E] hover:text-[#1b1c1a] transition-colors"
+                    className="py-3 px-8 text-[11px] uppercase tracking-[0.2em] font-medium bg-[#1b1c1a] text-[#fbf9f6] hover:bg-[#C9A96E] hover:text-[#1b1c1a] transition-colors cursor-pointer"
                 >
                     Return to Catalog
                 </button>
@@ -100,20 +318,13 @@ const ProductDetail = () => {
         );
     }
 
-    // Extract images safely
-    const imagesList = product.images && product.images.length > 0 ? product.images : [];
-    const currentImageUrl = imagesList[selectedImageIndex]?.url || imagesList[0]?.url || "/clothing_brand_login.jpg";
-    const totalImages = imagesList.length;
-
-    const handlePrevImage = () =>
-        setSelectedImageIndex((prev) => (prev === 0 ? totalImages - 1 : prev - 1));
-
-    const handleNextImage = () =>
-        setSelectedImageIndex((prev) => (prev === totalImages - 1 ? 0 : prev + 1));
+    const totalImages = displayImages.length;
+    const currentImageObj = displayImages[selectedImage] || displayImages[0];
+    const currentImageUrl = typeof currentImageObj === "string" ? currentImageObj : (currentImageObj?.url || "/clothing_brand_login.jpg");
 
     return (
         <div
-            className="min-h-screen selection:bg-[#C9A96E]/30 text-[#1b1c1a]"
+            className="min-h-screen selection:bg-[#C9A96E]/30 text-[#1b1c1a] pb-20"
             style={{ backgroundColor: "#fbf9f6", fontFamily: "'Inter', sans-serif" }}
         >
             {/* Google Fonts */}
@@ -122,18 +333,10 @@ const ProductDetail = () => {
                 rel="stylesheet"
             />
 
-            {/* ── TOP ANNOUNCEMENT BAR ── */}
-            <div
-                className="w-full py-2.5 px-4 text-center border-b text-[10px] uppercase tracking-[0.25em] font-medium"
-                style={{ backgroundColor: "#f5f3f0", borderColor: "#e4e2df", color: "#7A6E63" }}
-            >
-                Curated Archive // Complimentary Express Delivery & Bespoke Tailoring Consultation Across India
-            </div>
-
             {/* ── HEADER / NAVIGATION BAR ── */}
             <header
                 className="sticky top-0 z-40 w-full backdrop-blur-md border-b"
-                style={{ backgroundColor: "rgba(251, 249, 246, 0.92)", borderColor: "#e4e2df" }}
+                style={{ backgroundColor: "rgba(251, 249, 246, 0.94)", borderColor: "#e4e2df" }}
             >
                 <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 h-20 flex items-center justify-between">
                     <Link
@@ -153,199 +356,200 @@ const ProductDetail = () => {
                 </div>
             </header>
 
-            {/* ── MAIN PRODUCT DETAIL CONTENT ── */}
-            <main className="max-w-6xl mx-auto px-6 sm:px-10 lg:px-16 py-6 md:py-8">
-                {/* Top Navigation Row: Breadcrumbs & Return to Catalog Button */}
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <button
-                        onClick={() => navigate("/")}
-                        className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-[#7A6E63] hover:text-[#1b1c1a] transition-colors cursor-pointer"
-                    >
-                        <span>←</span>
-                        <span>Archive Collection</span>
-                        <span className="text-[#d0c5b5]">/</span>
-                        <span className="text-[#1b1c1a] font-medium">{product.title}</span>
-                    </button>
+            {/* ── MAIN PRODUCT CONTENT ── */}
+            <main className="max-w-6xl mx-auto px-6 sm:px-10 lg:px-14 pt-8 lg:pt-12">
+                <div className="flex flex-col lg:flex-row gap-10 lg:gap-14 xl:gap-16 items-start justify-between">
 
-                    <button
-                        onClick={() => navigate("/")}
-                        className="py-2 px-4 text-[10px] uppercase tracking-[0.2em] font-medium border border-[#d0c5b5] hover:border-[#1b1c1a] text-[#7A6E63] hover:text-[#1b1c1a] transition-all cursor-pointer"
-                    >
-                        ← Return to Catalog
-                    </button>
-                </div>
+                    {/* ── LEFT: IMAGE GALLERY (Thumbnails on Left + Main Image) ── */}
+                    <div className="w-full lg:w-[48%] xl:w-[46%] flex flex-col-reverse md:flex-row gap-3.5 max-w-[460px] mx-auto lg:mx-0">
 
-
-                {/* 2-Column Product Detail Layout (Matching former popup UI) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start">
-
-                    {/* ── LEFT: IMAGE GALLERY ── */}
-                    <div className="flex gap-3">
-
-                        {/* Vertical Thumbnail Strip */}
+                        {/* Thumbnails (Vertical on desktop, horizontal on mobile) */}
                         {totalImages > 1 && (
-                            <div
-                                className="flex flex-col gap-2 overflow-y-auto flex-shrink-0"
-                                style={{ width: "60px", maxHeight: "420px", scrollbarWidth: "thin", scrollbarColor: "#d0c5b5 transparent" }}
-                            >
-                                {imagesList.map((img, idx) => (
-                                    <button
-                                        key={img._id || idx}
-                                        onClick={() => setSelectedImageIndex(idx)}
-                                        className={`flex-shrink-0 overflow-hidden border transition-all duration-200 cursor-pointer ${selectedImageIndex === idx
-                                                ? "border-[#C9A96E] opacity-100 shadow-sm"
-                                                : "border-transparent opacity-50 hover:opacity-90"
+                            <div className="flex flex-row md:flex-col gap-2.5 overflow-x-auto md:overflow-y-auto pb-2 md:pb-0 scrollbar-hide w-full md:w-16 flex-shrink-0 md:max-h-[480px]">
+                                {displayImages.map((img, idx) => {
+                                    const thumbUrl = typeof img === "string" ? img : (img?.url || "/clothing_brand_login.jpg");
+                                    const isCurrent = selectedImage === idx;
+                                    return (
+                                        <button
+                                            key={img?._id || idx}
+                                            onClick={() => setSelectedImage(idx)}
+                                            className={`flex-shrink-0 w-16 md:w-full aspect-[3/4] overflow-hidden transition-all duration-300 border cursor-pointer ${
+                                                isCurrent
+                                                    ? "opacity-100 border-[#1b1c1a] shadow-sm ring-1 ring-[#1b1c1a]"
+                                                    : "opacity-60 hover:opacity-100 border-[#e4e2df]"
                                             }`}
-                                        style={{ width: "60px", height: "76px", backgroundColor: "#f2efe9" }}
-                                    >
-                                        <img
-                                            src={img.url}
-                                            alt={`Angle ${idx + 1}`}
-                                            className="w-full h-full object-cover object-top"
-                                        />
-                                    </button>
-                                ))}
+                                            style={{ backgroundColor: "#f5f3f0" }}
+                                        >
+                                            <img
+                                                src={thumbUrl}
+                                                alt={`View ${idx + 1}`}
+                                                className="w-full h-full object-cover object-top"
+                                                onError={(e) => { e.currentTarget.src = "/clothing_brand_login.jpg"; }}
+                                            />
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
 
-                        {/* Main Image with Prev / Next Arrows */}
+                        {/* Main Image (Reduced, compact size) */}
                         <div
-                            className="relative flex-1 overflow-hidden group"
-                            style={{ aspectRatio: "2/3", backgroundColor: "#f2efe9", border: "1px solid #e4e2df" }}
+                            className="relative w-full aspect-[3/4] max-h-[480px] overflow-hidden group flex-1"
+                            style={{ backgroundColor: "#f5f3f0", border: "1px solid #e4e2df" }}
                         >
                             <img
                                 src={currentImageUrl}
-                                alt={product.title}
-                                className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                                alt={displayTitle}
+                                className="w-full h-full object-cover object-top transition-all duration-500"
                                 onError={(e) => { e.currentTarget.src = "/clothing_brand_login.jpg"; }}
                             />
 
-                            {/* Left Arrow */}
+                            {/* Left / Right Carousel Arrow Controls */}
                             {totalImages > 1 && (
-                                <button
-                                    onClick={handlePrevImage}
-                                    className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-[#fbf9f6]/80 hover:bg-[#C9A96E] text-[#1b1c1a] transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm cursor-pointer"
-                                    style={{ backdropFilter: "blur(4px)" }}
-                                    aria-label="Previous image"
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <polyline points="15 18 9 12 15 6" />
-                                    </svg>
-                                </button>
-                            )}
-
-                            {/* Right Arrow */}
-                            {totalImages > 1 && (
-                                <button
-                                    onClick={handleNextImage}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-[#fbf9f6]/80 hover:bg-[#C9A96E] text-[#1b1c1a] transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-sm cursor-pointer"
-                                    style={{ backdropFilter: "blur(4px)" }}
-                                    aria-label="Next image"
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <polyline points="9 18 15 12 9 6" />
-                                    </svg>
-                                </button>
-                            )}
-
-                            {/* Dot Indicators */}
-                            {totalImages > 1 && (
-                                <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                    {imagesList.map((_, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setSelectedImageIndex(idx)}
-                                            className={`rounded-full transition-all duration-200 cursor-pointer ${selectedImageIndex === idx
-                                                    ? "w-4 h-1.5 bg-[#C9A96E]"
-                                                    : "w-1.5 h-1.5 bg-[#fbf9f6]/60 hover:bg-[#fbf9f6]"
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
+                                <>
+                                    <button
+                                        onClick={() => setSelectedImage(prev => prev === 0 ? totalImages - 1 : prev - 1)}
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 border cursor-pointer shadow-sm"
+                                        style={{ backgroundColor: "rgba(251,249,246,0.85)", borderColor: "#e4e2df", color: "#1b1c1a" }}
+                                        aria-label="Previous image"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="15 18 9 12 15 6" />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedImage(prev => prev === totalImages - 1 ? 0 : prev + 1)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 border cursor-pointer shadow-sm"
+                                        style={{ backgroundColor: "rgba(251,249,246,0.85)", borderColor: "#e4e2df", color: "#1b1c1a" }}
+                                        aria-label="Next image"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="9 18 15 12 9 6" />
+                                        </svg>
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
 
-                    {/* ── RIGHT: PRODUCT DETAILS & SPECIFICATIONS ── */}
-                    <div className="flex flex-col justify-between space-y-5">
-                        <div>
-                            {/* Gold Badge */}
-                            <span className="text-[10px] uppercase tracking-[0.25em] font-semibold" style={{ color: "#C9A96E" }}>
-                                Piece Identification
+                    {/* ── RIGHT: PRODUCT DETAILS & VARIANT SELECTION ── */}
+                    <div className="w-full lg:w-[52%] xl:w-[54%] lg:sticky lg:top-24 flex flex-col">
+
+                        {/* Title */}
+                        <h1
+                            className="text-4xl md:text-5xl lg:text-6xl font-light leading-[1.08] mb-4 text-[#1b1c1a]"
+                            style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                        >
+                            {displayTitle}
+                        </h1>
+
+                        {/* Price */}
+                        <div className="mb-6">
+                            <span className="text-sm uppercase tracking-[0.2em] font-medium text-[#1b1c1a]">
+                                {formatPriceDisplay(displayPrice)}
                             </span>
-
-                            {/* Product Title */}
-                            <h1
-                                className="text-2xl sm:text-4xl font-light capitalize mt-1.5 mb-3 leading-tight"
-                                style={{ fontFamily: "'Cormorant Garamond', serif", color: "#1b1c1a" }}
-                            >
-                                {product.title}
-                            </h1>
-
-                            {/* Price */}
-                            <p className="text-xl font-medium text-[#1b1c1a] mb-4">
-                                {formatPrice(product.price)}
-                            </p>
-
-                            {/* Gold Divider Line */}
-                            <div className="w-12 h-px mb-4" style={{ backgroundColor: "#C9A96E" }} />
-
-                            {/* Description */}
-                            <p className="text-xs font-light text-[#7A6E63] leading-relaxed mb-5">
-                                {product.description || "An essential silhouette balancing razor-sharp tailoring with fluid ease. Finished with reinforced seams and signature atelier touches."}
-                            </p>
-
-                            {/* Provenance & Atelier Reference Box */}
-                            <div
-                                className="p-4 text-[10px] space-y-2.5 border mb-5"
-                                style={{ backgroundColor: "#f5f3f0", borderColor: "#e4e2df" }}
-                            >
-                                <div className="flex justify-between border-b pb-2" style={{ borderColor: "#e4e2df" }}>
-                                    <span className="text-[#7A6E63] uppercase tracking-[0.1em]">Provenance</span>
-                                    <span className="font-medium text-[#1b1c1a]">Paris & New Delhi Studio</span>
-                                </div>
-                                <div className="flex justify-between border-b pb-2" style={{ borderColor: "#e4e2df" }}>
-                                    <span className="text-[#7A6E63] uppercase tracking-[0.1em]">Atelier Reference</span>
-                                    <span className="font-mono text-[#1b1c1a] text-[10px]">{product._id}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-[#7A6E63] uppercase tracking-[0.1em]">Garment Care</span>
-                                    <span className="text-[#1b1c1a]">Dry Clean Recommended</span>
-                                </div>
-                            </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="space-y-2.5 pt-2">
-                            {/* Buy Now Button (Replaces former Return button) */}
-                            <button
-                                onClick={handleBuyNow}
-                                className="w-full py-3 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 cursor-pointer bg-[#1b1c1a] text-[#fbf9f6] hover:bg-[#C9A96E] hover:text-[#1b1c1a]"
-                            >
-                                Buy Now — {formatPrice(product.price)}
-                            </button>
+                        {/* Divider Line */}
+                        <div className="h-px w-full mb-8" style={{ backgroundColor: "#e4e2df" }} />
 
-                            {/* Add to Shopping Bag Button */}
+                        {/* ── DYNAMIC VARIANT ATTRIBUTE SELECTORS (Color, Size, etc.) ── */}
+                        {Object.entries(availableAttributes).map(([attrName, values]) => (
+                            <div key={attrName} className="mb-6">
+                                <h3 className="text-[10px] uppercase tracking-[0.24em] font-semibold mb-3 text-[#7A6E63]">
+                                    {attrName}
+                                </h3>
+                                <div className="flex flex-wrap gap-2.5">
+                                    {values.map(val => {
+                                        const isSelected = String(selectedAttributes[attrName] || "").trim().toLowerCase() === String(val).trim().toLowerCase();
+                                        return (
+                                            <button
+                                                key={val}
+                                                type="button"
+                                                onClick={() => handleAttributeChange(attrName, val)}
+                                                className={`px-5 py-2.5 text-[11px] uppercase tracking-[0.18em] font-medium transition-all duration-200 border cursor-pointer ${
+                                                    isSelected
+                                                        ? "border-[#1b1c1a] bg-[#1b1c1a] text-[#fbf9f6] shadow-sm"
+                                                        : "border-[#d0c5b5] text-[#1b1c1a] hover:border-[#1b1c1a] bg-transparent"
+                                                }`}
+                                            >
+                                                {val}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Stock Information */}
+                        <div className="mb-6">
+                            <span className={`text-[10px] uppercase tracking-[0.2em] font-medium ${
+                                displayStock === null || displayStock > 0 ? "text-[#1b1c1a]" : "text-red-700"
+                            }`}>
+                                {displayStock !== null && displayStock !== undefined
+                                    ? (displayStock > 0 ? `${displayStock} IN STOCK` : "OUT OF STOCK")
+                                    : "IN STOCK"}
+                            </span>
+                        </div>
+
+                        {/* The Details */}
+                        <div className="mb-10">
+                            <h3 className="text-[10px] uppercase tracking-[0.24em] font-semibold mb-3 text-[#7A6E63]">
+                                THE DETAILS
+                            </h3>
+                            <p className="text-xs md:text-sm font-light leading-relaxed text-[#7A6E63] whitespace-pre-line">
+                                {displayDescription}
+                            </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-col gap-3.5">
+                            {/* Add to Cart Button */}
                             <button
+                                type="button"
                                 onClick={handleAddToBag}
-                                className="w-full py-3 text-[10px] uppercase tracking-[0.2em] font-medium border border-[#1b1c1a] text-[#1b1c1a] hover:bg-[#1b1c1a] hover:text-[#fbf9f6] transition-all duration-300 cursor-pointer"
+                                disabled={isOutOfStock}
+                                className={`w-full py-4 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 ${
+                                    isOutOfStock
+                                        ? "bg-[#e4e2df] text-[#a59e95] cursor-not-allowed"
+                                        : "cursor-pointer bg-[#1b1c1a] text-[#fbf9f6] hover:bg-[#C9A96E] hover:text-[#1b1c1a]"
+                                }`}
                                 style={{
-                                    backgroundColor: addedToBag ? "#C9A96E" : "transparent",
-                                    color: addedToBag ? "#1b1c1a" : "#1b1c1a",
-                                    borderColor: addedToBag ? "#C9A96E" : "#1b1c1a"
+                                    backgroundColor: addedToBag ? "#C9A96E" : undefined,
+                                    color: addedToBag ? "#1b1c1a" : undefined
                                 }}
                             >
-                                {addedToBag ? "✓ Added to Shopping Bag" : "+ Add to Shopping Bag"}
+                                {addedToBag ? "✓ Added to Cart" : (isOutOfStock ? "Out of Stock" : "ADD TO CART")}
                             </button>
 
-                            {/* Secondary Return Link */}
-                            <div className="pt-2 text-center">
-                                <button
-                                    onClick={() => navigate("/")}
-                                    className="text-[10px] uppercase tracking-[0.2em] text-[#7A6E63] hover:text-[#1b1c1a] hover:underline underline-offset-4 transition-colors cursor-pointer"
-                                >
-                                    ← Return to Catalog
-                                </button>
+                            {/* Buy Now Button */}
+                            <button
+                                type="button"
+                                onClick={handleBuyNow}
+                                disabled={isOutOfStock}
+                                className={`w-full py-4 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 border ${
+                                    isOutOfStock
+                                        ? "border-[#e4e2df] text-[#a59e95] cursor-not-allowed bg-transparent"
+                                        : "border-[#1b1c1a] text-[#1b1c1a] hover:bg-[#1b1c1a] hover:text-[#fbf9f6] bg-transparent cursor-pointer"
+                                }`}
+                            >
+                                BUY NOW
+                            </button>
+                        </div>
+
+                        {/* Extra Guarantees / Specifications */}
+                        <div className="mt-12 space-y-3.5 text-[10px] uppercase tracking-[0.14em] text-[#7A6E63] border-t pt-6" style={{ borderColor: "#e4e2df" }}>
+                            <div className="flex justify-between border-b pb-3" style={{ borderColor: "#e4e2df" }}>
+                                <span>Shipping</span>
+                                <span>Complimentary over INR 15,000</span>
+                            </div>
+                            <div className="flex justify-between border-b pb-3" style={{ borderColor: "#e4e2df" }}>
+                                <span>Returns</span>
+                                <span>Within 14 days of delivery</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Authenticity</span>
+                                <span>100% Guaranteed</span>
                             </div>
                         </div>
 
@@ -354,7 +558,7 @@ const ProductDetail = () => {
             </main>
 
             {/* ── FOOTER ── */}
-            <footer className="border-t mt-10" style={{ backgroundColor: "#f5f3f0", borderColor: "#e4e2df" }}>
+            <footer className="border-t mt-20" style={{ backgroundColor: "#f5f3f0", borderColor: "#e4e2df" }}>
                 <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] uppercase tracking-[0.18em] text-[#7A6E63]">
                     <p>© 2026 STITCHD Atelier. All Rights Reserved.</p>
                     <Link to="/" className="hover:text-[#1b1c1a] transition-colors">
